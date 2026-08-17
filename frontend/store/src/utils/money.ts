@@ -57,6 +57,16 @@ export function formatMoney(fen: number): string {
 }
 
 /**
+ * 判断可用余额是否足够支付指定金额
+ * @param availableCent - 可用余额，单位为分
+ * @param requiredCent - 需要支付的金额，单位为分
+ * @returns true 表示余额足够
+ */
+export function isBalanceSufficient(availableCent: number, requiredCent: number): boolean {
+  return new Decimal(availableCent).greaterThanOrEqualTo(new Decimal(requiredCent));
+}
+
+/**
  * 多个分值的精确求和，返回分
  * @param values - 分值数组
  * @returns 求和结果，单位为分
