@@ -1,0 +1,56 @@
+@import './variables.scss';
+
+/* 全局重置 */
+page {
+  background-color: $color-neutral-50;
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  color: $color-neutral-900;
+  line-height: $line-height-normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 通用工具类 */
+.text-primary { color: $color-primary-500; }
+.text-success { color: $color-success; }
+.text-warning { color: $color-warning; }
+.text-error { color: $color-error; }
+.text-info { color: $color-info; }
+.text-muted { color: $color-neutral-400; }
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-1 { flex: 1; }
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ellipsis-2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 安全区底部占位 */
+.safe-area-bottom {
+  padding-bottom: $safe-area-bottom;
+}
+
+/* 卡片容器 */
+.card {
+  background-color: $color-neutral-0;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-1;
+}

@@ -1,0 +1,45 @@
+{
+  "pages": [
+    { "path": "pages/index/index", "style": { "navigationBarTitleText": "工作台", "navigationStyle": "custom" } },
+    { "path": "pages/order/list", "style": { "navigationBarTitleText": "我的订单" } },
+    { "path": "pages/stock/index", "style": { "navigationBarTitleText": "套件库存", "enablePullDownRefresh": true } },
+    { "path": "pages/profile/index", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录", "navigationStyle": "custom" } },
+    { "path": "pages/order/detail", "style": { "navigationBarTitleText": "订单详情" } },
+    { "path": "pages/order/create-step1", "style": { "navigationBarTitleText": "新建订单" } },
+    { "path": "pages/order/create-step2", "style": { "navigationBarTitleText": "配置窗帘" } },
+    { "path": "pages/order/create-step4", "style": { "navigationBarTitleText": "配件配置" } },
+    { "path": "pages/order/create-step5", "style": { "navigationBarTitleText": "订单预览" } },
+    { "path": "pages/order/custom-confirm", "style": { "navigationBarTitleText": "定制确认" } },
+    { "path": "pages/payment/index", "style": { "navigationBarTitleText": "支付" } },
+    { "path": "pages/payment/result", "style": { "navigationBarTitleText": "支付结果" } },
+    { "path": "pages/stock/flow", "style": { "navigationBarTitleText": "库存流水" } },
+    { "path": "pages/fabric/selector", "style": { "navigationBarTitleText": "选择面料" } },
+    { "path": "pages/after-sale/apply", "style": { "navigationBarTitleText": "售后申请" } },
+    { "path": "pages/invoice/apply", "style": { "navigationBarTitleText": "发票申请" } },
+    { "path": "pages/address/index", "style": { "navigationBarTitleText": "收货地址" } },
+    { "path": "pages/address/edit", "style": { "navigationBarTitleText": "编辑地址" } },
+    { "path": "pages/balance/index", "style": { "navigationBarTitleText": "我的余额" } },
+    { "path": "pages/balance/recharge/index", "style": { "navigationBarTitleText": "储值充值" } },
+    { "path": "pages/balance/transactions", "style": { "navigationBarTitleText": "余额流水" } }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "世尚智能订货",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F9FAFB",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#9CA3AF",
+    "selectedColor": "#56638F",
+    "borderStyle": "white",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "工作台", "iconPath": "static/images/tab-home.png", "selectedIconPath": "static/images/tab-home-active.png" },
+      { "pagePath": "pages/order/list", "text": "订单", "iconPath": "static/images/tab-order.png", "selectedIconPath": "static/images/tab-order-active.png" },
+      { "pagePath": "pages/stock/index", "text": "库存", "iconPath": "static/images/tab-stock.png", "selectedIconPath": "static/images/tab-stock-active.png" },
+      { "pagePath": "pages/profile/index", "text": "我的", "iconPath": "static/images/tab-profile.png", "selectedIconPath": "static/images/tab-profile-active.png" }
+    ]
+  }
+}

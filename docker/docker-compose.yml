@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: shishang-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../backend:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - php
+    restart: unless-stopped
+    networks:
+      - shishang-net
+
+  php:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    container_name: shishang-php
+    volumes:
+      - ../backend:/var/www/html
+    depends_on:
+      - mysql
+      - redis
+    restart: unless-stopped
+    networks:
+      - shishang-net
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=shishang_order
+      - DB_USER=shishang
+      - DB_PASSWORD=Shishang@2026
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  mysql:
+    image: mysql:8.0
+    container_name: shishang-mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - MYSQL_ROOT_PASSWORD=Root@2026
+      - MYSQL_DATABASE=shishang_order
+      - MYSQL_USER=shishang
+      - MYSQL_PASSWORD=Shishang@2026
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    networks:
+      - shishang-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: shishang-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass Redis@2026
+    restart: unless-stopped
+    networks:
+      - shishang-net
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  shishang-net:
+    driver: bridge

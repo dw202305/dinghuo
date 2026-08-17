@@ -1,0 +1,40 @@
+/**
+ * Element Plus 主题覆盖
+ * 将 Element Plus 主色覆盖为品牌色 #56638F
+ */
+:root {
+  --el-color-primary: #56638f;
+  --el-color-primary-light-3: #7b89b0;
+  --el-color-primary-light-5: #a3aecb;
+  --el-color-primary-light-7: #c9d1e3;
+  --el-color-primary-light-8: #e8ecf4;
+  --el-color-primary-light-9: #f4f6fa;
+  --el-color-primary-dark-2: #475278;
+
+  --el-color-success: #059669;
+  --el-color-warning: #d97706;
+  --el-color-danger: #dc2626;
+  --el-color-info: #6b7280;
+
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 9999px;
+
+  --el-border-color: #e5e7eb;
+  --el-border-color-light: #f3f4f6;
+
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f9fafb;
+  --el-bg-color-overlay: #ffffff;
+
+  --el-text-color-primary: #1f2937;
+  --el-text-color-regular: #4b5563;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-placeholder: #9ca3af;
+
+  --el-font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --el-font-size-base: 14px;
+
+  --el-fill-color-light: #f9fafb;
+}
