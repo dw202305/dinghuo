@@ -1,7 +1,7 @@
 <template>
   <div class="order-list-page">
     <!-- 搜索区 -->
-    <SearchForm :model-value="queryParams as Record<string, unknown>" @search="handleSearch" @reset="handleReset">
+    <SearchForm :model-value="queryParams as Record<string, unknown>" @search="handleSearch" @reset="customReset">
       <el-form-item label="订单号">
         <el-input
           v-model="queryParams.keyword"
@@ -191,7 +191,7 @@ const {
   total,
   queryParams,
   handleSearch,
-  handleReset,
+  handleReset: originalReset,
   handlePageChange,
   handleSizeChange
 } = useTable({
@@ -217,8 +217,7 @@ watch([dateRange, storeKeyword, customerKeyword], () => {
   ;(queryParams as Record<string, unknown>).customer_name = customerKeyword.value || undefined
 })
 
-/** 重置时清空额外参数 */
-const originalReset = handleReset
+/** 重置时清空额外参数（模板 @reset 直接绑定此函数，避免重赋 const 绑定） */
 function customReset(): void {
   dateRange.value = null
   storeKeyword.value = ""
@@ -229,10 +228,6 @@ function customReset(): void {
   ;(queryParams as Record<string, unknown>).customer_name = undefined
   originalReset()
 }
-
-// Override the reset handler exposed by template
-// @ts-expect-error template uses handleReset
-handleReset = customReset
 
 /** 跳转订单详情 */
 function goDetail(orderId: number): void {
