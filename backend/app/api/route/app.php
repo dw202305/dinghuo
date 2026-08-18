@@ -138,124 +138,124 @@ Route::group('v1', function () {
 Route::group('v1/admin', function () {
 
     // ---- 3.1 认证模块（公开端点 login 已移出本鉴权组，见第一节）----
-    Route::post('auth/logout', 'admin/AdminAuthController@logout');
-    Route::get('auth/profile', 'admin/AdminAuthController@profile');
-    Route::put('auth/password', 'admin/AdminAuthController@changePassword');
+    Route::post('auth/logout', '\app\api\controller\admin\AdminAuthController@logout');
+    Route::get('auth/profile', '\app\api\controller\admin\AdminAuthController@profile');
+    Route::put('auth/password', '\app\api\controller\admin\AdminAuthController@changePassword');
 
     // ---- 3.2 门店管理（复数：stores）----
-    Route::get('stores', 'admin/AdminStoreController@list');
-    Route::get('stores/:id', 'admin/AdminStoreController@detail');
-    Route::post('stores', 'admin/AdminStoreController@create');
-    Route::put('stores/:id', 'admin/AdminStoreController@update');
-    Route::put('stores/:id/status', 'admin/AdminStoreController@status');
-    Route::post('stores/:id/contacts', 'admin/AdminStoreController@contactSave');
-    Route::post('stores/:id/accounts', 'admin/AdminStoreController@accountSave');
+    Route::get('stores', '\app\api\controller\admin\AdminStoreController@list');
+    Route::get('stores/:id', '\app\api\controller\admin\AdminStoreController@detail');
+    Route::post('stores', '\app\api\controller\admin\AdminStoreController@create');
+    Route::put('stores/:id', '\app\api\controller\admin\AdminStoreController@update');
+    Route::put('stores/:id/status', '\app\api\controller\admin\AdminStoreController@status');
+    Route::post('stores/:id/contacts', '\app\api\controller\admin\AdminStoreController@contactSave');
+    Route::post('stores/:id/accounts', '\app\api\controller\admin\AdminStoreController@accountSave');
 
     // ---- 3.3 城市合伙人管理（复数：partners）----
-    Route::get('partners', 'admin/AdminPartnerController@list');
-    Route::get('partners/:id', 'admin/AdminPartnerController@detail');
-    Route::post('partners', 'admin/AdminPartnerController@save');
-    Route::get('partners/:id/stores', 'admin/AdminPartnerController@stores');
+    Route::get('partners', '\app\api\controller\admin\AdminPartnerController@list');
+    Route::get('partners/:id', '\app\api\controller\admin\AdminPartnerController@detail');
+    Route::post('partners', '\app\api\controller\admin\AdminPartnerController@save');
+    Route::get('partners/:id/stores', '\app\api\controller\admin\AdminPartnerController@stores');
 
     // ---- 3.4 商品管理 ----
     // 面料
-    Route::get('products/fabrics', 'admin/AdminProductController@fabricList');
-    Route::get('products/fabrics/:id', 'admin/AdminProductController@fabricDetail');
-    Route::post('products/fabrics', 'admin/AdminProductController@fabricSave');
-    Route::post('products/fabrics/import', 'admin/AdminProductController@fabricImport');
-    Route::post('products/fabrics/batch-price', 'admin/AdminProductController@fabricBatchPrice');
-    Route::post('products/fabrics/batch-status', 'admin/AdminProductController@fabricBatchStatus');
+    Route::get('products/fabrics', '\app\api\controller\admin\AdminProductController@fabricList');
+    Route::get('products/fabrics/:id', '\app\api\controller\admin\AdminProductController@fabricDetail');
+    Route::post('products/fabrics', '\app\api\controller\admin\AdminProductController@fabricSave');
+    Route::post('products/fabrics/import', '\app\api\controller\admin\AdminProductController@fabricImport');
+    Route::post('products/fabrics/batch-price', '\app\api\controller\admin\AdminProductController@fabricBatchPrice');
+    Route::post('products/fabrics/batch-status', '\app\api\controller\admin\AdminProductController@fabricBatchStatus');
     // 轨道
-    Route::get('products/tracks', 'admin/AdminProductController@trackList');
-    Route::post('products/tracks', 'admin/AdminProductController@trackSave');
+    Route::get('products/tracks', '\app\api\controller\admin\AdminProductController@trackList');
+    Route::post('products/tracks', '\app\api\controller\admin\AdminProductController@trackSave');
     // 配件
-    Route::get('products/accessories', 'admin/AdminProductController@accessoryList');
-    Route::post('products/accessories', 'admin/AdminProductController@accessorySave');
+    Route::get('products/accessories', '\app\api\controller\admin\AdminProductController@accessoryList');
+    Route::post('products/accessories', '\app\api\controller\admin\AdminProductController@accessorySave');
     // 套件
-    Route::get('products/kits', 'admin/AdminProductController@kitList');
-    Route::post('products/kits', 'admin/AdminProductController@kitSave');
+    Route::get('products/kits', '\app\api\controller\admin\AdminProductController@kitList');
+    Route::post('products/kits', '\app\api\controller\admin\AdminProductController@kitSave');
     // 供应商
-    Route::get('products/suppliers', 'admin/AdminProductController@supplierList');
-    Route::post('products/suppliers', 'admin/AdminProductController@supplierSave');
-    Route::post('products/suppliers/mapping', 'admin/AdminProductController@supplierMappingSave');
+    Route::get('products/suppliers', '\app\api\controller\admin\AdminProductController@supplierList');
+    Route::post('products/suppliers', '\app\api\controller\admin\AdminProductController@supplierSave');
+    Route::post('products/suppliers/mapping', '\app\api\controller\admin\AdminProductController@supplierMappingSave');
 
     // ---- 3.5 订单管理（复数：orders）----
-    Route::get('orders', 'admin/AdminOrderController@list');
-    Route::get('orders/:id', 'admin/AdminOrderController@detail');
-    Route::post('orders/:id/audit', 'admin/AdminOrderController@audit');
-    Route::post('orders/:id/production', 'admin/AdminOrderController@production');
-    Route::post('orders/:id/ship', 'admin/AdminOrderController@ship');
-    Route::post('orders/:id/cancel', 'admin/AdminOrderController@cancel');
-    Route::post('orders/:id/adjust-price', 'admin/AdminOrderController@adjustPrice');
+    Route::get('orders', '\app\api\controller\admin\AdminOrderController@list');
+    Route::get('orders/:id', '\app\api\controller\admin\AdminOrderController@detail');
+    Route::post('orders/:id/audit', '\app\api\controller\admin\AdminOrderController@audit');
+    Route::post('orders/:id/production', '\app\api\controller\admin\AdminOrderController@production');
+    Route::post('orders/:id/ship', '\app\api\controller\admin\AdminOrderController@ship');
+    Route::post('orders/:id/cancel', '\app\api\controller\admin\AdminOrderController@cancel');
+    Route::post('orders/:id/adjust-price', '\app\api\controller\admin\AdminOrderController@adjustPrice');
 
     // ---- 3.11 技术审核 ----
-    Route::post('orders/:id/audit/switch-to-pre', 'admin/AdminTechnicalAuditController@switchToPreAudit');
-    Route::post('orders/:id/audit/result', 'admin/AdminTechnicalAuditController@submitResult');
-    Route::get('orders/:id/audit', 'admin/AdminTechnicalAuditController@getAuditDetail');
-    Route::get('orders/:id/audit/timeout-check', 'admin/AdminTechnicalAuditController@checkTimeout');
+    Route::post('orders/:id/audit/switch-to-pre', '\app\api\controller\admin\AdminTechnicalAuditController@switchToPreAudit');
+    Route::post('orders/:id/audit/result', '\app\api\controller\admin\AdminTechnicalAuditController@submitResult');
+    Route::get('orders/:id/audit', '\app\api\controller\admin\AdminTechnicalAuditController@getAuditDetail');
+    Route::get('orders/:id/audit/timeout-check', '\app\api\controller\admin\AdminTechnicalAuditController@checkTimeout');
 
     // ---- 3.6 库存管理（复数：inventories）----
-    Route::get('inventories/stores', 'admin/AdminInventoryController@store');
-    Route::post('inventories/adjust', 'admin/AdminInventoryController@adjust');
-    Route::get('inventories/logs', 'admin/AdminInventoryController@log');
+    Route::get('inventories/stores', '\app\api\controller\admin\AdminInventoryController@store');
+    Route::post('inventories/adjust', '\app\api\controller\admin\AdminInventoryController@adjust');
+    Route::get('inventories/logs', '\app\api\controller\admin\AdminInventoryController@log');
 
     // ---- 3.7 财务管理（复数：finance）----
-    Route::get('finance/payments', 'admin/AdminFinanceController@paymentList');
-    Route::post('finance/refunds', 'admin/AdminFinanceController@refund');
-    Route::get('finance/reconciliation/export', 'admin/AdminFinanceController@reconciliationExport');
-    Route::post('finance/invoices/review', 'admin/AdminFinanceController@invoiceReview');
+    Route::get('finance/payments', '\app\api\controller\admin\AdminFinanceController@paymentList');
+    Route::post('finance/refunds', '\app\api\controller\admin\AdminFinanceController@refund');
+    Route::get('finance/reconciliation/export', '\app\api\controller\admin\AdminFinanceController@reconciliationExport');
+    Route::post('finance/invoices/review', '\app\api\controller\admin\AdminFinanceController@invoiceReview');
 
     // ---- 3.8 发票管理（复数：invoices）----
-    Route::get('invoices', 'admin/AdminInvoiceController@list');
-    Route::get('invoices/:id', 'admin/AdminInvoiceController@detail');
-    Route::post('invoices/:id/review', 'admin/AdminInvoiceController@review');
-    Route::post('invoices/:id/issue', 'admin/AdminInvoiceController@issue');
+    Route::get('invoices', '\app\api\controller\admin\AdminInvoiceController@list');
+    Route::get('invoices/:id', '\app\api\controller\admin\AdminInvoiceController@detail');
+    Route::post('invoices/:id/review', '\app\api\controller\admin\AdminInvoiceController@review');
+    Route::post('invoices/:id/issue', '\app\api\controller\admin\AdminInvoiceController@issue');
 
     // ---- 3.9 售后管理（复数：after-sales）----
-    Route::get('after-sales', 'admin/AdminAfterSaleController@list');
-    Route::get('after-sales/:id', 'admin/AdminAfterSaleController@detail');
-    Route::post('after-sales/:id/process', 'admin/AdminAfterSaleController@process');
-    Route::post('after-sales/:id/close', 'admin/AdminAfterSaleController@close');
+    Route::get('after-sales', '\app\api\controller\admin\AdminAfterSaleController@list');
+    Route::get('after-sales/:id', '\app\api\controller\admin\AdminAfterSaleController@detail');
+    Route::post('after-sales/:id/process', '\app\api\controller\admin\AdminAfterSaleController@process');
+    Route::post('after-sales/:id/close', '\app\api\controller\admin\AdminAfterSaleController@close');
 
     // ---- 3.10 系统管理 ----
     // 管理员
-    Route::get('system/admins', 'admin/AdminSystemController@adminList');
-    Route::post('system/admins', 'admin/AdminSystemController@adminSave');
-    Route::delete('system/admins/:id', 'admin/AdminSystemController@adminDelete');
+    Route::get('system/admins', '\app\api\controller\admin\AdminSystemController@adminList');
+    Route::post('system/admins', '\app\api\controller\admin\AdminSystemController@adminSave');
+    Route::delete('system/admins/:id', '\app\api\controller\admin\AdminSystemController@adminDelete');
     // 角色
-    Route::get('system/roles', 'admin/AdminSystemController@roleList');
-    Route::post('system/roles', 'admin/AdminSystemController@roleSave');
-    Route::delete('system/roles/:id', 'admin/AdminSystemController@roleDelete');
+    Route::get('system/roles', '\app\api\controller\admin\AdminSystemController@roleList');
+    Route::post('system/roles', '\app\api\controller\admin\AdminSystemController@roleSave');
+    Route::delete('system/roles/:id', '\app\api\controller\admin\AdminSystemController@roleDelete');
     // 权限树
-    Route::get('system/permissions/tree', 'admin/AdminSystemController@permissionTree');
+    Route::get('system/permissions/tree', '\app\api\controller\admin\AdminSystemController@permissionTree');
     // 操作日志
-    Route::get('system/operation-logs', 'admin/AdminSystemController@operationLog');
+    Route::get('system/operation-logs', '\app\api\controller\admin\AdminSystemController@operationLog');
     // 归属变更
-    Route::post('system/attributions/change', 'admin/AdminSystemController@attributionChange');
+    Route::post('system/attributions/change', '\app\api\controller\admin\AdminSystemController@attributionChange');
     // 销售转交
-    Route::post('system/sales/transfers', 'admin/AdminSystemController@salesTransfer');
+    Route::post('system/sales/transfers', '\app\api\controller\admin\AdminSystemController@salesTransfer');
 
 
     // ---- 3.12 客户等级管理 ----
-    Route::get('customer-levels', 'admin/AdminStoreController@customerLevelList');
-    Route::put('customer-levels/:id', 'admin/AdminStoreController@customerLevelUpdate');
+    Route::get('customer-levels', '\app\api\controller\admin\AdminStoreController@customerLevelList');
+    Route::put('customer-levels/:id', '\app\api\controller\admin\AdminStoreController@customerLevelUpdate');
 
     // ---- 3.13 发货管理 ----
-    Route::get('logistics', 'admin/AdminOrderController@logisticsList');
-    Route::post('logistics/:id/ship', 'admin/AdminOrderController@logisticsShip');
+    Route::get('logistics', '\app\api\controller\admin\AdminOrderController@logisticsList');
+    Route::post('logistics/:id/ship', '\app\api\controller\admin\AdminOrderController@logisticsShip');
 
     // ---- 3.14 生产单管理 ----
-    Route::get('production', 'admin/AdminOrderController@productionList');
-    Route::post('production/:id/confirm', 'admin/AdminOrderController@productionConfirm');
+    Route::get('production', '\app\api\controller\admin\AdminOrderController@productionList');
+    Route::post('production/:id/confirm', '\app\api\controller\admin\AdminOrderController@productionConfirm');
 
     // ---- 3.15 客户资金账户/储值审核/资金对账 ----
-    Route::get('finance/customer-accounts', 'admin/AdminFinanceController@customerAccounts');
-    Route::get('finance/recharge-audit', 'admin/AdminFinanceController@rechargeAudit');
-    Route::post('finance/recharge-audit/:id', 'admin/AdminFinanceController@rechargeAuditProcess');
-    Route::get('finance/reconciliation', 'admin/AdminFinanceController@financeReconciliation');
+    Route::get('finance/customer-accounts', '\app\api\controller\admin\AdminFinanceController@customerAccounts');
+    Route::get('finance/recharge-audit', '\app\api\controller\admin\AdminFinanceController@rechargeAudit');
+    Route::post('finance/recharge-audit/:id', '\app\api\controller\admin\AdminFinanceController@rechargeAuditProcess');
+    Route::get('finance/reconciliation', '\app\api\controller\admin\AdminFinanceController@financeReconciliation');
 
     // ---- 3.16 仪表盘统计 ----
-    Route::get('dashboard/stats', 'admin/AdminDashboardController@stats');
+    Route::get('dashboard/stats', '\app\api\controller\admin\AdminDashboardController@stats');
 
 })->middleware('admin_auth');
 
@@ -382,100 +382,100 @@ Route::group('admin', function () {
 // @deprecated 请使用新版 /api/v1/admin/stores、/api/v1/admin/orders 等 RESTful 路由
 Route::group('admin', function () {
 
-    Route::post('auth/logout', 'admin/AdminAuthController@logout');
-    Route::get('auth/profile', 'admin/AdminAuthController@profile');
-    Route::put('auth/password', 'admin/AdminAuthController@changePassword');
+    Route::post('auth/logout', '\app\api\controller\admin\AdminAuthController@logout');
+    Route::get('auth/profile', '\app\api\controller\admin\AdminAuthController@profile');
+    Route::put('auth/password', '\app\api\controller\admin\AdminAuthController@changePassword');
 
     // 门店管理（旧）
-    Route::get('store/list', 'admin/AdminStoreController@list');
-    Route::get('store/detail', 'admin/AdminStoreController@detail');
-    Route::post('store/create', 'admin/AdminStoreController@create');
-    Route::put('store/update', 'admin/AdminStoreController@update');
-    Route::put('store/status', 'admin/AdminStoreController@status');
-    Route::post('store/contact/save', 'admin/AdminStoreController@contactSave');
-    Route::post('store/account/save', 'admin/AdminStoreController@accountSave');
+    Route::get('store/list', '\app\api\controller\admin\AdminStoreController@list');
+    Route::get('store/detail', '\app\api\controller\admin\AdminStoreController@detail');
+    Route::post('store/create', '\app\api\controller\admin\AdminStoreController@create');
+    Route::put('store/update', '\app\api\controller\admin\AdminStoreController@update');
+    Route::put('store/status', '\app\api\controller\admin\AdminStoreController@status');
+    Route::post('store/contact/save', '\app\api\controller\admin\AdminStoreController@contactSave');
+    Route::post('store/account/save', '\app\api\controller\admin\AdminStoreController@accountSave');
 
     // 城市合伙人（旧）
-    Route::get('partner/list', 'admin/AdminPartnerController@list');
-    Route::get('partner/detail', 'admin/AdminPartnerController@detail');
-    Route::post('partner/save', 'admin/AdminPartnerController@save');
-    Route::get('partner/stores', 'admin/AdminPartnerController@stores');
+    Route::get('partner/list', '\app\api\controller\admin\AdminPartnerController@list');
+    Route::get('partner/detail', '\app\api\controller\admin\AdminPartnerController@detail');
+    Route::post('partner/save', '\app\api\controller\admin\AdminPartnerController@save');
+    Route::get('partner/stores', '\app\api\controller\admin\AdminPartnerController@stores');
 
     // 商品管理（旧）
-    Route::get('product/fabric/list', 'admin/AdminProductController@fabricList');
-    Route::get('product/fabric/detail', 'admin/AdminProductController@fabricDetail');
-    Route::post('product/fabric/save', 'admin/AdminProductController@fabricSave');
-    Route::post('product/fabric/import', 'admin/AdminProductController@fabricImport');
-    Route::post('product/fabric/batch-price', 'admin/AdminProductController@fabricBatchPrice');
-    Route::post('product/fabric/batch-status', 'admin/AdminProductController@fabricBatchStatus');
-    Route::get('product/track/list', 'admin/AdminProductController@trackList');
-    Route::post('product/track/save', 'admin/AdminProductController@trackSave');
-    Route::get('product/accessory/list', 'admin/AdminProductController@accessoryList');
-    Route::post('product/accessory/save', 'admin/AdminProductController@accessorySave');
-    Route::get('product/kit/list', 'admin/AdminProductController@kitList');
-    Route::post('product/kit/save', 'admin/AdminProductController@kitSave');
-    Route::get('product/supplier/list', 'admin/AdminProductController@supplierList');
-    Route::post('product/supplier/save', 'admin/AdminProductController@supplierSave');
-    Route::post('product/supplier/mapping/save', 'admin/AdminProductController@supplierMappingSave');
+    Route::get('product/fabric/list', '\app\api\controller\admin\AdminProductController@fabricList');
+    Route::get('product/fabric/detail', '\app\api\controller\admin\AdminProductController@fabricDetail');
+    Route::post('product/fabric/save', '\app\api\controller\admin\AdminProductController@fabricSave');
+    Route::post('product/fabric/import', '\app\api\controller\admin\AdminProductController@fabricImport');
+    Route::post('product/fabric/batch-price', '\app\api\controller\admin\AdminProductController@fabricBatchPrice');
+    Route::post('product/fabric/batch-status', '\app\api\controller\admin\AdminProductController@fabricBatchStatus');
+    Route::get('product/track/list', '\app\api\controller\admin\AdminProductController@trackList');
+    Route::post('product/track/save', '\app\api\controller\admin\AdminProductController@trackSave');
+    Route::get('product/accessory/list', '\app\api\controller\admin\AdminProductController@accessoryList');
+    Route::post('product/accessory/save', '\app\api\controller\admin\AdminProductController@accessorySave');
+    Route::get('product/kit/list', '\app\api\controller\admin\AdminProductController@kitList');
+    Route::post('product/kit/save', '\app\api\controller\admin\AdminProductController@kitSave');
+    Route::get('product/supplier/list', '\app\api\controller\admin\AdminProductController@supplierList');
+    Route::post('product/supplier/save', '\app\api\controller\admin\AdminProductController@supplierSave');
+    Route::post('product/supplier/mapping/save', '\app\api\controller\admin\AdminProductController@supplierMappingSave');
 
     // 订单管理（旧）
-    Route::get('order/list', 'admin/AdminOrderController@list');
-    Route::get('order/detail', 'admin/AdminOrderController@detail');
-    Route::post('order/audit', 'admin/AdminOrderController@audit');
-    Route::post('order/production', 'admin/AdminOrderController@production');
-    Route::post('order/ship', 'admin/AdminOrderController@ship');
-    Route::post('order/cancel', 'admin/AdminOrderController@cancel');
-    Route::post('order/adjust-price', 'admin/AdminOrderController@adjustPrice');
+    Route::get('order/list', '\app\api\controller\admin\AdminOrderController@list');
+    Route::get('order/detail', '\app\api\controller\admin\AdminOrderController@detail');
+    Route::post('order/audit', '\app\api\controller\admin\AdminOrderController@audit');
+    Route::post('order/production', '\app\api\controller\admin\AdminOrderController@production');
+    Route::post('order/ship', '\app\api\controller\admin\AdminOrderController@ship');
+    Route::post('order/cancel', '\app\api\controller\admin\AdminOrderController@cancel');
+    Route::post('order/adjust-price', '\app\api\controller\admin\AdminOrderController@adjustPrice');
 
     // 库存管理（旧）
-    Route::get('inventory/store', 'admin/AdminInventoryController@store');
-    Route::post('inventory/adjust', 'admin/AdminInventoryController@adjust');
-    Route::get('inventory/log', 'admin/AdminInventoryController@log');
+    Route::get('inventory/store', '\app\api\controller\admin\AdminInventoryController@store');
+    Route::post('inventory/adjust', '\app\api\controller\admin\AdminInventoryController@adjust');
+    Route::get('inventory/log', '\app\api\controller\admin\AdminInventoryController@log');
 
     // 财务管理（旧）
-    Route::get('finance/payment/list', 'admin/AdminFinanceController@paymentList');
-    Route::post('finance/refund', 'admin/AdminFinanceController@refund');
-    Route::get('finance/reconciliation/export', 'admin/AdminFinanceController@reconciliationExport');
-    Route::post('finance/invoice/review', 'admin/AdminFinanceController@invoiceReview');
+    Route::get('finance/payment/list', '\app\api\controller\admin\AdminFinanceController@paymentList');
+    Route::post('finance/refund', '\app\api\controller\admin\AdminFinanceController@refund');
+    Route::get('finance/reconciliation/export', '\app\api\controller\admin\AdminFinanceController@reconciliationExport');
+    Route::post('finance/invoice/review', '\app\api\controller\admin\AdminFinanceController@invoiceReview');
 
     // 发票管理（旧）
-    Route::get('invoice/list', 'admin/AdminInvoiceController@list');
-    Route::get('invoice/detail', 'admin/AdminInvoiceController@detail');
-    Route::post('invoice/review', 'admin/AdminInvoiceController@review');
-    Route::post('invoice/issue', 'admin/AdminInvoiceController@issue');
+    Route::get('invoice/list', '\app\api\controller\admin\AdminInvoiceController@list');
+    Route::get('invoice/detail', '\app\api\controller\admin\AdminInvoiceController@detail');
+    Route::post('invoice/review', '\app\api\controller\admin\AdminInvoiceController@review');
+    Route::post('invoice/issue', '\app\api\controller\admin\AdminInvoiceController@issue');
 
     // 售后管理（旧）
-    Route::get('after-sale/list', 'admin/AdminAfterSaleController@list');
-    Route::get('after-sale/detail', 'admin/AdminAfterSaleController@detail');
-    Route::post('after-sale/process', 'admin/AdminAfterSaleController@process');
-    Route::post('after-sale/close', 'admin/AdminAfterSaleController@close');
+    Route::get('after-sale/list', '\app\api\controller\admin\AdminAfterSaleController@list');
+    Route::get('after-sale/detail', '\app\api\controller\admin\AdminAfterSaleController@detail');
+    Route::post('after-sale/process', '\app\api\controller\admin\AdminAfterSaleController@process');
+    Route::post('after-sale/close', '\app\api\controller\admin\AdminAfterSaleController@close');
 
     // 系统管理（旧）
-    Route::get('system/admin/list', 'admin/AdminSystemController@adminList');
-    Route::post('system/admin/save', 'admin/AdminSystemController@adminSave');
-    Route::delete('system/admin/delete', 'admin/AdminSystemController@adminDelete');
-    Route::get('system/role/list', 'admin/AdminSystemController@roleList');
-    Route::post('system/role/save', 'admin/AdminSystemController@roleSave');
-    Route::delete('system/role/delete', 'admin/AdminSystemController@roleDelete');
-    Route::get('system/permission/tree', 'admin/AdminSystemController@permissionTree');
-    Route::get('system/operation-log', 'admin/AdminSystemController@operationLog');
-    Route::post('system/attribution/change', 'admin/AdminSystemController@attributionChange');
-    Route::post('system/sales/transfer', 'admin/AdminSystemController@salesTransfer');
+    Route::get('system/admin/list', '\app\api\controller\admin\AdminSystemController@adminList');
+    Route::post('system/admin/save', '\app\api\controller\admin\AdminSystemController@adminSave');
+    Route::delete('system/admin/delete', '\app\api\controller\admin\AdminSystemController@adminDelete');
+    Route::get('system/role/list', '\app\api\controller\admin\AdminSystemController@roleList');
+    Route::post('system/role/save', '\app\api\controller\admin\AdminSystemController@roleSave');
+    Route::delete('system/role/delete', '\app\api\controller\admin\AdminSystemController@roleDelete');
+    Route::get('system/permission/tree', '\app\api\controller\admin\AdminSystemController@permissionTree');
+    Route::get('system/operation-log', '\app\api\controller\admin\AdminSystemController@operationLog');
+    Route::post('system/attribution/change', '\app\api\controller\admin\AdminSystemController@attributionChange');
+    Route::post('system/sales/transfer', '\app\api\controller\admin\AdminSystemController@salesTransfer');
 
 
     // 客户等级管理（旧）
-    Route::get('customer-level/list', 'admin/AdminStoreController@customerLevelList');
-    Route::post('customer-level/update', 'admin/AdminStoreController@customerLevelUpdate');
+    Route::get('customer-level/list', '\app\api\controller\admin\AdminStoreController@customerLevelList');
+    Route::post('customer-level/update', '\app\api\controller\admin\AdminStoreController@customerLevelUpdate');
     // 发货管理（旧）
-    Route::get('logistics/list', 'admin/AdminOrderController@logisticsList');
-    Route::post('logistics/ship', 'admin/AdminOrderController@logisticsShip');
+    Route::get('logistics/list', '\app\api\controller\admin\AdminOrderController@logisticsList');
+    Route::post('logistics/ship', '\app\api\controller\admin\AdminOrderController@logisticsShip');
     // 生产单管理（旧）
-    Route::get('production/list', 'admin/AdminOrderController@productionList');
-    Route::post('production/confirm', 'admin/AdminOrderController@productionConfirm');
+    Route::get('production/list', '\app\api\controller\admin\AdminOrderController@productionList');
+    Route::post('production/confirm', '\app\api\controller\admin\AdminOrderController@productionConfirm');
     // 客户资金账户/储值审核/资金对账（旧）
-    Route::get('finance/customer-accounts', 'admin/AdminFinanceController@customerAccounts');
-    Route::get('finance/recharge-audit/list', 'admin/AdminFinanceController@rechargeAudit');
-    Route::post('finance/recharge-audit/process', 'admin/AdminFinanceController@rechargeAuditProcess');
-    Route::get('finance/reconciliation', 'admin/AdminFinanceController@financeReconciliation');
+    Route::get('finance/customer-accounts', '\app\api\controller\admin\AdminFinanceController@customerAccounts');
+    Route::get('finance/recharge-audit/list', '\app\api\controller\admin\AdminFinanceController@rechargeAudit');
+    Route::post('finance/recharge-audit/process', '\app\api\controller\admin\AdminFinanceController@rechargeAuditProcess');
+    Route::get('finance/reconciliation', '\app\api\controller\admin\AdminFinanceController@financeReconciliation');
 
 })->middleware('admin_auth')->prefix('v1/admin');
