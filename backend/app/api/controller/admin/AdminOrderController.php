@@ -65,7 +65,7 @@ class AdminOrderController extends BaseController
                 'o.id as order_id', 'o.order_no', 'o.order_status', 'o.transaction_type',
                 's.store_name', 's.store_no', 'p.business_entity as partner_name',
                 'sp.name as primary_sales_name', 'o.project_name', 'o.end_customer',
-                'o.item_count', 'o.total_amount', 'o.paid_amount', 'o.payment_status',
+                'o.item_count', 'o.total_amount_cent as total_amount', 'o.paid_amount_cent as paid_amount', 'o.payment_status',
                 'o.audit_status', 'o.created_by', 'o.created_at', 'o.paid_at',
             ])
             ->order('o.id', 'desc')

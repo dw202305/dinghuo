@@ -26,10 +26,11 @@ class AdminStoreController extends BaseController
         $query = Db::name('store')
             ->alias('s')
             ->leftJoin('partner p', 'p.id = s.partner_id')
-            ->leftJoin('sales_person sp', 'sp.id = s.primary_sales_id');
+            ->leftJoin('sales_person sp', 'sp.id = s.primary_sales_id')
+            ->leftJoin('store_contact sc', 'sc.id = s.primary_contact_id');
 
         if ($keyword = $request->param('keyword', '')) {
-            $query->where('s.store_no|s.store_name|s.primary_contact_name', 'like', '%' . $keyword . '%');
+            $query->where('s.store_no|s.store_name|sc.contact_name', 'like', '%' . $keyword . '%');
         }
         if ($storeType = $request->param('store_type/d')) {
             $query->where('s.store_type', $storeType);
@@ -61,8 +62,8 @@ class AdminStoreController extends BaseController
                 's.id as store_id', 's.store_no', 's.store_name', 's.business_entity',
                 's.customer_level', 's.channel_mode', 'p.business_entity as partner_name',
                 'sp.name as primary_sales_name', 's.province', 's.city',
-                's.contact_phone', 's.primary_contact_name', 's.status',
-                's.cooperation_start_date', 's.created_at',
+                's.contact_phone', 'sc.contact_name as primary_contact_name', 's.status',
+                's.cooperation_start_date',
             ])
             ->order('s.id', 'desc')
             ->page($page, $pageSize)
@@ -162,8 +163,10 @@ class AdminStoreController extends BaseController
                 'primary_contact_name' => $data['primary_contact_name'],
                 'primary_contact_phone' => $data['primary_contact_phone'],
                 'cooperation_start_date' => $data['cooperation_start_date'] ?? null,
-                'status' => 1, 'created_at' => date('Y-m-d H:i:s'),
+                'status' => 1,
             ];
+            // 注：lj_store 无 primary_contact_name/phone/created_at 列，主联系人写入联系人表
+            unset($storeData['primary_contact_name'], $storeData['primary_contact_phone']);
             $storeId = Db::name('store')->insertGetId($storeData);
 
             // 创建默认联系人
@@ -206,7 +209,7 @@ class AdminStoreController extends BaseController
         if (isset($data['invoice_info']) && is_array($data['invoice_info'])) {
             $data['invoice_info'] = json_encode($data['invoice_info'], JSON_UNESCAPED_UNICODE);
         }
-        $data['updated_at'] = date('Y-m-d H:i:s');
+        // lj_store 无 updated_at 列，不写入时间戳
 
         Db::name('store')->where('id', $storeId)->update($data);
 

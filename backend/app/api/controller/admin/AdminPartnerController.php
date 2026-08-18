@@ -106,13 +106,12 @@ class AdminPartnerController extends BaseController
             return $this->success(['partner_id' => $partnerId]);
         }
 
-        // 新增
+        // 新增（lj_partner 无 created_at 列）
         if (Db::name('partner')->where('partner_no', $data['partner_no'])->find()) {
             return $this->error('合伙人编号已存在', 1005);
         }
 
         $data['status'] = 1;
-        $data['created_at'] = date('Y-m-d H:i:s');
         $newId = Db::name('partner')->insertGetId($data);
 
         return $this->success(['partner_id' => $newId]);
