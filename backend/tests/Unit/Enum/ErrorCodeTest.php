@@ -176,9 +176,10 @@ class ErrorCodeTest extends TestCase
         $constants = $reflection->getConstants();
 
         // 排除 HTTP_STATUS_MAP（它本身也是常量）
+        // 注意：ARRAY_FILTER_USE_BOTH 回调签名为 (value, key)
         $errorCodeConstants = array_filter(
             $constants,
-            fn($key) => $key !== 'HTTP_STATUS_MAP' && is_int($constants[$key]),
+            fn($value, $key) => $key !== 'HTTP_STATUS_MAP' && is_int($value),
             ARRAY_FILTER_USE_BOTH
         );
 

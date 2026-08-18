@@ -100,13 +100,15 @@ php think key:generate
 | admin.shishang.com | 后台管理 | Nginx → 静态文件 |
 | m.shishang.com | 门店端 H5 | Nginx → 静态文件 |
 
-## 默认密码（务必修改！）
+## 凭证配置（批次0已轮换）
 
-| 服务 | 用户名 | 默认密码 |
+| 服务 | 用户名 | 凭证来源 |
 |---|---|---|
-| MySQL Root | root | Root@Shishang2026! |
-| MySQL App | shishang | Shishang@2026! |
-| Redis | - | Redis@Shishang2026! |
+| MySQL Root | root | 环境变量 `MYSQL_ROOT_PASSWORD`（compose 必需，无内置默认值） |
+| MySQL App | shishang | `backend/.env` `[DATABASE] PASSWORD`（compose 默认值已同步新口令） |
+| Redis | - | `backend/.env` `[REDIS] PASSWORD` 与 `deploy/redis/redis.conf`（已同步新口令） |
+
+> 凭证已在批次0轮换，以 `backend/.env` 为准；请勿在文档/脚本中明文回显口令。
 
 ## 常用命令
 

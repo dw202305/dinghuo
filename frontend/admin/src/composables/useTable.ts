@@ -7,7 +7,7 @@ import type { Ref } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 
 /** 表格配置 */
-interface UseTableOptions<T, P extends Record<string, unknown>> {
+interface UseTableOptions<T, P extends object> {
   /** 获取列表数据的 API 函数 */
   fetchApi: (params: P) => Promise<{ list: T[]; total: number }>
   /** 初始查询参数 */
@@ -21,7 +21,7 @@ interface UseTableOptions<T, P extends Record<string, unknown>> {
 /**
  * 通用表格逻辑 composable
  */
-export function useTable<T, P extends Record<string, unknown>>(options: UseTableOptions<T, P>) {
+export function useTable<T, P extends object>(options: UseTableOptions<T, P>) {
   const { fetchApi, defaultParams = {}, pageSize = 20, immediate = true } = options
 
   const loading = ref<boolean>(false)
@@ -65,7 +65,7 @@ export function useTable<T, P extends Record<string, unknown>>(options: UseTable
   function handleReset(): void {
     Object.keys(queryParams).forEach((key) => {
       if (key !== "page" && key !== "page_size") {
-        ;(queryParams as Record<string, unknown>)[key] = defaultParams[key] ?? undefined
+        ;(queryParams as Record<string, unknown>)[key] = (defaultParams as unknown as Record<string, unknown>)[key] ?? undefined
       }
     })
     queryParams.page = 1

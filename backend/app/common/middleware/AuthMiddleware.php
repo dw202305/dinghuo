@@ -28,6 +28,9 @@ class AuthMiddleware
     /** 缓存 TTL（秒）：24 小时，兜底过期 */
     private const STORE_TTL = 86400;
 
+    /** JWT 黑名单 Key 前缀（批次3：logout 后使旧 Token 立即失效） */
+    public const TOKEN_BLACKLIST_PREFIX = 'jwt:blacklist:';
+
     /**
      * 处理请求
      * @param Request $request
@@ -44,6 +47,11 @@ class AuthMiddleware
 
         if (empty($token)) {
             return $this->unauthorized('请先登录');
+        }
+
+        // 批次3：登出黑名单检查（命中即视为已注销）
+        if (Cache::store('redis')->get(self::TOKEN_BLACKLIST_PREFIX . sha1($token))) {
+            return $this->unauthorized('登录已失效，请重新登录');
         }
 
         try {
@@ -118,5 +126,33 @@ class AuthMiddleware
     {
         $storeKey = self::STORE_KEY_PREFIX . $accountId;
         Cache::store('redis')->set($storeKey, $storeId, self::STORE_TTL);
+    }
+
+    /**
+     * 清除账号的当前门店缓存（批次3：供 AuthController::logout 调用）
+     * @param int $accountId
+     * @return void
+     */
+    public static function clearCurrentStore(int $accountId): void
+    {
+        Cache::store('redis')->delete(self::STORE_KEY_PREFIX . $accountId);
+    }
+
+    /**
+     * 将 Token 加入黑名单（批次3：供 AuthController::logout 调用）
+     *
+     * TTL = Token 剩余有效期，到期后 Redis 自动清理，黑名单不会无限膨胀。
+     *
+     * @param string $token 原始 JWT
+     * @param int $ttlSeconds 剩余有效期（秒），<=0 时不写入（Token 已自然过期）
+     * @return void
+     */
+    public static function blacklistToken(string $token, int $ttlSeconds): void
+    {
+        if ($ttlSeconds <= 0) {
+            return;
+        }
+
+        Cache::store('redis')->set(self::TOKEN_BLACKLIST_PREFIX . sha1($token), 1, $ttlSeconds);
     }
 }

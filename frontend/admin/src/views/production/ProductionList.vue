@@ -76,7 +76,7 @@
         <el-table-column type="selection" width="45" align="center" />
         <el-table-column prop="item_no" label="生产单号" width="250" fixed show-overflow-tooltip>
           <template #default="{ row }">
-            <el-button type="primary" link @click="openDetailDialog(row)">
+            <el-button type="primary" link @click="openDetailDialog(row as ProductionListItem)">
               {{ row.item_no }}
             </el-button>
           </template>
@@ -126,7 +126,7 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openDetailDialog(row)">
+            <el-button type="primary" link size="small" @click="openDetailDialog(row as ProductionListItem)">
               详情
             </el-button>
             <el-button
@@ -229,6 +229,14 @@ import TablePagination from "@/components/TablePagination.vue"
 import StatusTag from "@/components/StatusTag.vue"
 import ConfirmDialog from "@/components/ConfirmDialog.vue"
 
+/** 生产列表查询参数 */
+interface ProductionQueryParams {
+  keyword?: string
+  production_status?: number
+  shipping_status?: number
+  [key: string]: unknown
+}
+
 /** 日期范围 */
 const dateRange = ref<[string, string] | null>(null)
 /** 门店关键词 */
@@ -260,8 +268,8 @@ const {
   handleReset,
   handlePageChange,
   handleSizeChange
-} = useTable<ProductionListItem, Record<string, unknown>>({
-  fetchApi: getProductionList as unknown as (params: Record<string, unknown>) => Promise<{ list: ProductionListItem[]; total: number }>,
+} = useTable<ProductionListItem, ProductionQueryParams>({
+  fetchApi: getProductionList as unknown as (params: ProductionQueryParams) => Promise<{ list: ProductionListItem[]; total: number }>,
   defaultParams: {
     keyword: undefined,
     production_status: undefined,
@@ -275,11 +283,11 @@ const {
 /** 搜索时同步额外参数 */
 watch([dateRange, storeKeyword], () => {
   if (dateRange.value) {
-    (queryParams as Record<string, unknown>).start_date = dateRange.value[0]
-    (queryParams as Record<string, unknown>).end_date = dateRange.value[1]
+    ;(queryParams as Record<string, unknown>).start_date = dateRange.value[0]
+    ;(queryParams as Record<string, unknown>).end_date = dateRange.value[1]
   } else {
-    (queryParams as Record<string, unknown>).start_date = undefined
-    (queryParams as Record<string, unknown>).end_date = undefined
+    ;(queryParams as Record<string, unknown>).start_date = undefined
+    ;(queryParams as Record<string, unknown>).end_date = undefined
   }
   ;(queryParams as Record<string, unknown>).store_name = storeKeyword.value || undefined
 })

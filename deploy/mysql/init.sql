@@ -1,7 +1,8 @@
 -- 世尚门店订货系统 数据库初始化脚本
--- 版本：v1.2（基于 database.md v1.2，28张表）
--- 生成日期：2026-08-17
+-- 版本：v1.3（基于 database.md v1.2 + 批次2a增补，31张表）
+-- 生成日期：2026-08-18
 -- 金额单位：分（BIGINT），尺寸单位：厘米/米，面积单位：平方米
+-- v1.3 变更：lj_order 增 audit_type；新增 lj_kit / lj_sequence / lj_order_status_history
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -327,6 +328,7 @@ CREATE TABLE `lj_order` (
   `paid_amount_cent` BIGINT NOT NULL DEFAULT 0 COMMENT '实付金额（分）',
   `payment_status` TINYINT NOT NULL DEFAULT 0 COMMENT '支付状态：0未支付 1部分支付 2已支付',
   `audit_status` TINYINT NOT NULL DEFAULT 0 COMMENT '审核状态：0未审核 1审核通过 2需确认 3待补款 4无法生产',
+  `audit_type` VARCHAR(20) NOT NULL DEFAULT 'post_audit' COMMENT '审核类型：post_audit先付后审 pre_audit先审后付',
   `expected_delivery_date` DATE DEFAULT NULL COMMENT '期望交期',
   `invoice_required` TINYINT NOT NULL DEFAULT 0 COMMENT '是否需要发票：0否 1是',
   `remark` TEXT COMMENT '整单备注',
@@ -817,6 +819,53 @@ CREATE TABLE `lj_invoice_request` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='发票申请表';
 
 -- ========================================
+-- 2.25 套件主数据表 lj_kit
+-- ========================================
+CREATE TABLE `lj_kit` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `kit_sku` VARCHAR(32) NOT NULL COMMENT '套件SKU，如 KIT-STD-STORE',
+  `kit_name` VARCHAR(100) NOT NULL COMMENT '套件名称',
+  `customer_level` TINYINT NOT NULL COMMENT '适用客户等级：1认证合作门店 2城市合伙人',
+  `kit_price_cent` BIGINT NOT NULL COMMENT '等级套件价（分），含税不含运费',
+  `effective_from` DATE DEFAULT NULL COMMENT '价格生效日期',
+  `effective_to` DATE DEFAULT NULL COMMENT '价格失效日期',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用 0停用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_kit_sku` (`kit_sku`),
+  KEY `idx_kit_customer_level` (`customer_level`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='套件主数据表（等级套件价，PRD 4.4）';
+
+-- ========================================
+-- 2.26 业务单号序列表 lj_sequence
+-- ========================================
+CREATE TABLE `lj_sequence` (
+  `seq_type` VARCHAR(32) NOT NULL COMMENT '序列类型，如 order/payment/recharge/balance_txn',
+  `seq_date` DATE NOT NULL COMMENT '序列日期',
+  `seq_value` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '当前序列值',
+  PRIMARY KEY (`seq_type`, `seq_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务单号序列表（Redis取号的MySQL降级通道）';
+
+-- ========================================
+-- 2.27 订单状态历史表 lj_order_status_history
+-- ========================================
+CREATE TABLE `lj_order_status_history` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT UNSIGNED NOT NULL COMMENT '订单ID',
+  `order_no` VARCHAR(32) NOT NULL COMMENT '订单号',
+  `from_status` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '变更前状态（创建时为空串）',
+  `to_status` VARCHAR(32) NOT NULL COMMENT '变更后状态',
+  `action` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '触发动作',
+  `role` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '操作角色：store/admin/system等',
+  `reason` VARCHAR(255) DEFAULT NULL COMMENT '原因',
+  `operator_id` BIGINT DEFAULT NULL COMMENT '操作人ID',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单状态历史表';
+
+-- ========================================
 -- 初始化数据
 -- ========================================
 
@@ -827,5 +876,10 @@ INSERT INTO `lj_admin_role` (`id`, `role_name`, `role_code`, `description`, `sor
 -- 超级管理员账号（密码：Admin@2026!）
 INSERT INTO `lj_admin` (`id`, `username`, `password_hash`, `real_name`, `phone`, `role_id`, `status`) VALUES
 (1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uPZQxNCGy6', '系统管理员', '13800000000', 1, 1);
+
+-- 等级套件价初始数据（PRD v3.2 §4.4：认证门店760元/套、城市合伙人660元/套，含税不含运费）
+INSERT INTO `lj_kit` (`kit_sku`, `kit_name`, `customer_level`, `kit_price_cent`, `status`) VALUES
+('KIT-STD-STORE', '标准套件（认证合作门店）', 1, 76000, 1),
+('KIT-STD-PARTNER', '标准套件（城市合伙人）', 2, 66000, 1);
 
 SET FOREIGN_KEY_CHECKS = 1;

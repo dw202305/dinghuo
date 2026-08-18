@@ -18,8 +18,8 @@ return [
             'database'        => env('database.database', 'shishang_order'),
             // 用户名
             'username'        => env('database.username', 'shishang'),
-            // 密码
-            'password'        => env('database.password', 'Shishang@2026'),
+            // 密码（兜底空串：缺配置时快速失败，避免静默连错口令）
+            'password'        => env('database.password', ''),
             // 端口
             'hostport'        => env('database.hostport', '3306'),
             // 数据库连接参数

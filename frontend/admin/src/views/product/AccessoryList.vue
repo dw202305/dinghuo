@@ -95,13 +95,13 @@
               inline-prompt
               active-text="启"
               inactive-text="停"
-              @change="(val: boolean) => handleToggleEnabled(row, val)"
+              @change="(val: string | number | boolean) => handleToggleEnabled(row as AccessoryItem & { _toggling?: boolean }, val === true)"
             />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
+            <el-button type="primary" link size="small" @click="openEditDialog(row as AccessoryItem)">编辑</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -244,8 +244,8 @@ function optionTypeText(type: number): string {
   return "新增"
 }
 
-function optionTypeTagType(type: number): "" | "success" | "warning" {
-  if (type === 1) return ""
+function optionTypeTagType(type: number): "primary" | "success" | "warning" {
+  if (type === 1) return "primary"
   if (type === 2) return "warning"
   return "success"
 }
@@ -260,6 +260,13 @@ function yuanToCent(yuan: number | null | undefined): number {
   return Math.round((yuan ?? 0) * 100)
 }
 
+/** 配件列表查询参数 */
+interface AccessoryQueryParams {
+  config_group?: string
+  enabled?: 0 | 1
+  [key: string]: unknown
+}
+
 const {
   loading,
   tableData,
@@ -270,8 +277,8 @@ const {
   handleReset,
   handlePageChange,
   handleSizeChange
-} = useTable<AccessoryItem, Record<string, unknown>>({
-  fetchApi: getAccessoryList,
+} = useTable<AccessoryItem, AccessoryQueryParams>({
+  fetchApi: (params: AccessoryQueryParams) => getAccessoryList(params),
   defaultParams: {
     config_group: undefined,
     enabled: undefined

@@ -66,7 +66,7 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
-          <template #default="{ row }">
+          <template #default="{ row }: { row: PermissionNode }">
             <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
             <el-button type="success" link size="small" @click="openCreateDialog(row)">新增子权限</el-button>
             <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
@@ -92,7 +92,8 @@
           <el-tree-select
             v-model="permForm.parent_id"
             :data="parentOptions"
-            :props="{ label: 'permission_name', children: 'children', value: 'permission_id' }"
+            node-key="permission_id"
+            :props="{ label: 'permission_name', children: 'children' }"
             placeholder="无（顶级权限）"
             clearable
             check-strictly

@@ -71,13 +71,30 @@ export interface RechargeParams {
   idempotency_key: string
 }
 
+/** 第三方支付参数（规范 6.2：禁用 any） */
+export interface PaymentParams {
+  /** 微信小程序支付：时间戳（uni.requestPayment） */
+  timeStamp?: string
+  /** 微信小程序支付：随机串 */
+  nonceStr?: string
+  /** 微信小程序支付：统一下单接口返回的 package 参数 */
+  package?: string
+  /** 微信小程序支付：签名方式 */
+  signType?: string
+  /** 微信小程序支付：签名 */
+  paySign?: string
+  /** 支付宝：订单串（my.tradePay 的 orderStr） */
+  order_string?: string
+  /** 其他渠道扩展参数 */
+  [key: string]: unknown
+}
+
 /** 充值结果 */
 export interface RechargeResult {
   /** 充值单号 */
   recharge_no: string
   /** 第三方支付参数 */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payment_params: any
+  payment_params: PaymentParams | null
 }
 
 /** 充值记录参数 */

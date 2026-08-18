@@ -45,4 +45,6 @@ export interface InventoryListParams {
   keyword?: string
   page?: number
   page_size?: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }

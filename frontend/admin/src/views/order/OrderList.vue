@@ -207,11 +207,11 @@ const {
 /** 搜索时同步额外参数 */
 watch([dateRange, storeKeyword, customerKeyword], () => {
   if (dateRange.value) {
-    (queryParams as Record<string, unknown>).start_date = dateRange.value[0]
-    (queryParams as Record<string, unknown>).end_date = dateRange.value[1]
+    ;(queryParams as Record<string, unknown>).start_date = dateRange.value[0]
+    ;(queryParams as Record<string, unknown>).end_date = dateRange.value[1]
   } else {
-    (queryParams as Record<string, unknown>).start_date = undefined
-    (queryParams as Record<string, unknown>).end_date = undefined
+    ;(queryParams as Record<string, unknown>).start_date = undefined
+    ;(queryParams as Record<string, unknown>).end_date = undefined
   }
   ;(queryParams as Record<string, unknown>).store_name = storeKeyword.value || undefined
   ;(queryParams as Record<string, unknown>).customer_name = customerKeyword.value || undefined

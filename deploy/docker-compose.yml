@@ -43,7 +43,7 @@ services:
       - DB_PORT=3306
       - DB_DATABASE=shishang_order
       - DB_USERNAME=shishang
-      - DB_PASSWORD=${DB_PASSWORD:-Shishang@2026!}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD 未设置，请通过环境变量提供}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
@@ -70,10 +70,10 @@ services:
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-Root@Shishang2026!}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置，请通过环境变量提供}
       - MYSQL_DATABASE=shishang_order
       - MYSQL_USER=shishang
-      - MYSQL_PASSWORD=${DB_PASSWORD:-Shishang@2026!}
+      - MYSQL_PASSWORD=${DB_PASSWORD:?DB_PASSWORD 未设置，请通过环境变量提供}
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s

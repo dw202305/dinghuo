@@ -95,17 +95,17 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleAdjustBalance(row)">
+            <el-button type="primary" link size="small" @click="handleAdjustBalance(row as CustomerAccount)">
               调整余额
             </el-button>
-            <el-button type="info" link size="small" @click="handleViewLog(row)">
+            <el-button type="info" link size="small" @click="handleViewLog(row as CustomerAccount)">
               查看流水
             </el-button>
             <el-button
               :type="row.is_frozen ? 'success' : 'warning'"
               link
               size="small"
-              @click="handleToggleFreeze(row)"
+              @click="handleToggleFreeze(row as CustomerAccount)"
             >
               {{ row.is_frozen ? '解冻' : '冻结' }}
             </el-button>
@@ -161,13 +161,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from "vue"
+import { ref, reactive, watch } from "vue"
 import { useRouter } from "vue-router"
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from "element-plus"
 import { getCustomerAccounts, adjustBalance, toggleAccountFreeze } from "@/api/finance"
 import { useTable } from "@/composables/useTable"
 import { formatMoney, formatDateTime } from "@/utils/format"
-import type { CustomerAccount } from "@/types/finance"
+import type { CustomerAccount, AccountListParams } from "@/types/finance"
 import SearchForm from "@/components/SearchForm.vue"
 import TablePagination from "@/components/TablePagination.vue"
 
@@ -200,7 +200,7 @@ const {
   handlePageChange,
   handleSizeChange
 } = useTable({
-  fetchApi: (params) =>
+  fetchApi: (params: AccountListParams) =>
     getCustomerAccounts(params).then((res) => {
       /** 同步汇总数据 */
       summary.totalCustomerCount = res.total_customer_count

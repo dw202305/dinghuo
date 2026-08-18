@@ -50,10 +50,10 @@
         <el-table-column prop="frozen" label="冻结" width="80" align="center" />
         <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openAdjustDialog(row)">
+            <el-button type="primary" link size="small" @click="openAdjustDialog(row as InventoryRecord)">
               库存调整
             </el-button>
-            <el-button type="info" link size="small" @click="openLogDialog(row)">
+            <el-button type="info" link size="small" @click="openLogDialog(row as InventoryRecord)">
               查看流水
             </el-button>
           </template>

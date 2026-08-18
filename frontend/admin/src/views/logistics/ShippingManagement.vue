@@ -111,7 +111,7 @@
               type="primary"
               link
               size="small"
-              @click="openShipDialog(row)"
+              @click="openShipDialog(row as PendingShipmentOrder)"
             >
               <el-icon><Promotion /></el-icon>
               发货
@@ -121,7 +121,7 @@
               type="info"
               link
               size="small"
-              @click="openLogisticsDialog(row)"
+              @click="openLogisticsDialog(row as PendingShipmentOrder)"
             >
               <el-icon><Van /></el-icon>
               查看物流
@@ -201,10 +201,9 @@
             <el-table-column width="50" align="center">
               <template #default="{ row }">
                 <el-checkbox
-                  v-model="selectedItemIds"
-                  :label="row.item_id"
+                  :model-value="selectedItemIds.includes(row.item_id)"
                   :disabled="row.shipping_status === 1"
-                  @change="handleItemCheck"
+                  @change="(checked: string | number | boolean) => handleItemCheckChange(row.item_id, checked === true)"
                 />
               </template>
             </el-table-column>
@@ -378,7 +377,6 @@ import {
 import { useTable } from '@/composables/useTable'
 import { formatDateTime, formatDate } from '@/utils/format'
 import {
-  ShippingFilterStatus,
   ShippingFilterStatusMap,
   CARRIER_OPTIONS
 } from '@/types/logistics'
@@ -456,11 +454,11 @@ const {
 /** 监听日期范围，同步到查询参数 */
 watch(dateRange, (val) => {
   if (val) {
-    (queryParams as Record<string, unknown>).start_date = val[0]
-    (queryParams as Record<string, unknown>).end_date = val[1]
+    ;(queryParams as Record<string, unknown>).start_date = val[0]
+    ;(queryParams as Record<string, unknown>).end_date = val[1]
   } else {
-    (queryParams as Record<string, unknown>).start_date = undefined
-    (queryParams as Record<string, unknown>).end_date = undefined
+    ;(queryParams as Record<string, unknown>).start_date = undefined
+    ;(queryParams as Record<string, unknown>).end_date = undefined
   }
 })
 
@@ -572,6 +570,20 @@ function handleSelectAll(val: boolean | string | number): void {
   } else {
     selectedItemIds.value = []
   }
+}
+
+/**
+ * 单条勾选变化：增删选中数组后同步全选状态
+ */
+function handleItemCheckChange(itemId: number, checked: boolean): void {
+  if (checked) {
+    if (!selectedItemIds.value.includes(itemId)) {
+      selectedItemIds.value.push(itemId)
+    }
+  } else {
+    selectedItemIds.value = selectedItemIds.value.filter((id) => id !== itemId)
+  }
+  handleItemCheck()
 }
 
 /**

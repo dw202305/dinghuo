@@ -4,7 +4,7 @@
 
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
-import { getToken, setToken, removeToken, getAdminUser, setAdminUser, clearAuth } from "@/utils/storage"
+import { getToken, setToken, getAdminUser, setAdminUser, clearAuth } from "@/utils/storage"
 import { adminLogin, getAdminProfile, adminLogout } from "@/api/auth"
 import router from "@/router"
 

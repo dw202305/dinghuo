@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace app\common;
 
+use app\common\enum\ErrorCode;
 use app\common\middleware\RequestIdMiddleware;
 use think\Response;
 
@@ -36,16 +37,25 @@ trait ApiResponse
      */
     protected function success(mixed $data = null, string $message = 'success', int $code = 0): Response
     {
+        // 成功响应固定 HTTP 200（规范 §14.2）
         return json([
             'code'       => $code,
             'message'    => $message,
             'data'       => $data,
             'request_id' => $this->getRequestId(),
-        ]);
+        ], 200);
     }
 
     /**
      * 失败响应
+     *
+     * HTTP 状态码按业务错误码段映射（规范 §14.2，批次5）：
+     * 1xxx→400、2xxx→401、3xxx→403(3002→404)、4xxx→409/422、5xxx→500，
+     * 精确映射见 ErrorCode::HTTP_STATUS_MAP，未登记的按段推断。
+     *
+     * 注意：支付/储值回调接口的应答（微信 {"code":"SUCCESS"}、支付宝 success/failure）
+     * 由 Controller 独立返回，不经过本方法，不受此映射影响。
+     *
      * @param string $message 错误信息
      * @param int    $code    错误码
      * @param mixed  $data    附加数据
@@ -58,7 +68,7 @@ trait ApiResponse
             'message'    => $message,
             'data'       => $data,
             'request_id' => $this->getRequestId(),
-        ]);
+        ], ErrorCode::toHttpStatus($code));
     }
 
     /**

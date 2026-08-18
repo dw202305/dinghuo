@@ -353,7 +353,7 @@ async function handleSubmit() {
     } else if (selectedPay.value === 'alipay' && result.payment_params) {
       // #ifdef MP-ALIPAY
       my.tradePay({
-        orderStr: result.payment_params.order_string,
+        orderStr: result.payment_params.order_string ?? '',
         success: () => {
           uni.showToast({ title: '充值成功', icon: 'success' });
           loadRechargeRecords();

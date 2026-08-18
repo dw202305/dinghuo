@@ -90,14 +90,14 @@
         <el-table-column label="操作" width="200" fixed="right" align="center">
           <template #default="{ row }">
             <template v-if="row.status === 'pending'">
-              <el-button type="success" link size="small" @click="handleApprove(row)">
+              <el-button type="success" link size="small" @click="handleApprove(row as RechargeAuditRecord)">
                 通过
               </el-button>
-              <el-button type="danger" link size="small" @click="handleReject(row)">
+              <el-button type="danger" link size="small" @click="handleReject(row as RechargeAuditRecord)">
                 拒绝
               </el-button>
             </template>
-            <el-button type="info" link size="small" @click="handleViewHistory(row)">
+            <el-button type="info" link size="small" @click="handleViewHistory(row as RechargeAuditRecord)">
               审核记录
             </el-button>
           </template>
@@ -259,7 +259,7 @@ const {
 })
 
 /** Tab 切换 */
-function handleTabChange(val: string | number | boolean): void {
+function handleTabChange(val: string | number | boolean | undefined): void {
   ;(queryParams as Record<string, unknown>).status = val || undefined
   handleSearch()
 }

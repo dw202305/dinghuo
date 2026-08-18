@@ -64,9 +64,9 @@
 |----|-----|
 | 库名 | `shishang_order` |
 | 用户 | `shishang` |
-| 密码 | `Shishang@2026!`（注意结尾有感叹号） |
+| 密码 | 见 `backend/.env` `[DATABASE] PASSWORD`（批次0已轮换，勿明文外传） |
 | 表前缀 | `lj_`，共 28 张表 |
-| 访问 | `docker exec ss-mysql mysql -ushishang -p'Shishang@2026!' shishang_order` |
+| 访问 | `docker exec ss-mysql mysql -ushishang -p'<见 backend/.env [DATABASE] PASSWORD>' shishang_order` |
 
 ### 容器清单
 | 容器 | 镜像 | 端口 |

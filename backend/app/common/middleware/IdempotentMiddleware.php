@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace app\common\middleware;
 
 use app\common\enum\ErrorCode;
+use app\common\support\RedisLock;
 use think\Request;
 use think\Response;
 use think\facade\Cache;
@@ -35,6 +36,13 @@ class IdempotentMiddleware
      * 请求头名称
      */
     private const HEADER_NAME = 'Idempotent-Key';
+
+    /**
+     * 本次请求占位锁的键与 token（响应缓存完成后释放）
+     */
+    private string $heldLockKey = '';
+
+    private string $heldLockToken = '';
 
     /**
      * 需要幂等校验的路由配置
@@ -129,6 +137,12 @@ class IdempotentMiddleware
         // 缓存响应结果（仅缓存成功的 JSON 响应，失败的不缓存）
         $this->cacheResult($redisKey, $response);
 
+        // 结果已落缓存，释放占位锁（token 校验，不误删他人锁）
+        if ($this->heldLockKey !== '') {
+            RedisLock::release($this->heldLockKey, $this->heldLockToken);
+            $this->heldLockKey = $this->heldLockToken = '';
+        }
+
         return $response;
     }
 
@@ -186,22 +200,28 @@ class IdempotentMiddleware
     }
 
     /**
-     * 尝试对幂等 Key 加锁（SETNX）
-     * 设置一个较短的锁 TTL（30 秒），防止死锁
+     * 尝试对幂等 Key 占位（批次4：改真原子 SET NX EX）
+     *
+     * 旧版 Cache::store('redis')->set($lockKey, 1, 30) 无 NX 语义，
+     * 恒返 true，并发防重失效；现统一走 RedisLock（SET key token NX EX）。
+     * 锁 TTL 30 秒防死锁，持锁 token 记录于实例，结果缓存后释放。
      *
      * @param string $redisKey
      * @return bool
      */
     private function tryLock(string $redisKey): bool
     {
-        try {
-            $lockKey = $redisKey . ':lock';
-            // 使用 set 方法的 nx 选项实现原子 SETNX
-            return (bool) Cache::store('redis')->set($lockKey, 1, 30);
-        } catch (\Throwable $e) {
-            // Redis 异常时放行，避免阻断业务
-            return true;
+        $lockKey = $redisKey . ':lock';
+        $token = RedisLock::token();
+        $locked = RedisLock::acquire($lockKey, 30, $token);
+
+        if ($locked) {
+            // Redis 故障降级放行时 token 不匹配也无害（release 会校验）
+            $this->heldLockKey   = $lockKey;
+            $this->heldLockToken = $token;
         }
+
+        return $locked;
     }
 
     /**

@@ -87,7 +87,7 @@
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openDetailDialog(row)">详情</el-button>
+            <el-button type="primary" link size="small" @click="openDetailDialog(row as OperationLog)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -157,9 +157,9 @@ const MODULE_LABEL_MAP: Record<string, string> = Object.fromEntries(
   MODULE_OPTIONS.map((item) => [item.value, item.label])
 )
 
-const MODULE_TAG_TYPE_MAP: Record<string, "" | "success" | "warning" | "info" | "danger"> = {
-  order: "",
-  order_state: "",
+const MODULE_TAG_TYPE_MAP: Record<string, "primary" | "success" | "warning" | "info" | "danger"> = {
+  order: "primary",
+  order_state: "primary",
   payment: "success",
   invoice: "warning",
   after_sale: "danger",
@@ -168,7 +168,7 @@ const MODULE_TAG_TYPE_MAP: Record<string, "" | "success" | "warning" | "info" | 
   ownership: "info",
   balance: "success",
   finance: "success",
-  product: "",
+  product: "primary",
   system: "info"
 }
 
@@ -176,8 +176,15 @@ function moduleText(module: string): string {
   return MODULE_LABEL_MAP[module] || module || "-"
 }
 
-function moduleTagType(module: string): "" | "success" | "warning" | "info" | "danger" {
+function moduleTagType(module: string): "primary" | "success" | "warning" | "info" | "danger" {
   return MODULE_TAG_TYPE_MAP[module] ?? "info"
+}
+
+/** 列表查询参数 */
+interface LogQueryParams {
+  module?: string
+  operator_name?: string
+  [key: string]: unknown
 }
 
 /** 时间范围（映射到 start_date / end_date） */
@@ -192,7 +199,7 @@ const {
   handleReset: resetTable,
   handlePageChange,
   handleSizeChange
-} = useTable<OperationLog, Record<string, unknown>>({
+} = useTable<OperationLog, LogQueryParams>({
   fetchApi: (params) =>
     getOperationLogs({
       ...params,

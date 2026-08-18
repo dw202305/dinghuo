@@ -66,12 +66,15 @@ export interface FabricSaveParams {
  */
 export interface FabricListParams {
   keyword?: string
+  category?: string
   series?: string
   stock_status?: StockStatus
   listing_status?: 0 | 1
   orderable?: 0 | 1
   page?: number
   page_size?: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /**

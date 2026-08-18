@@ -35,3 +35,10 @@ desktop.ini
 *.tmp
 *.bak
 *.swp
+
+# Sensitive audit report (contains credential appendix, never push)
+docs/schema-audit-report.md
+
+# Local temp artifacts
+_tmp_diffs/
+frontend/admin/tsc-errors.txt

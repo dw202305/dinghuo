@@ -109,12 +109,12 @@
         <el-table-column label="操作" width="120" fixed="right" align="center">
           <template #default="{ row }">
             <template v-if="row.type === 'adjustment'">
-              <el-button type="primary" link size="small" @click="handleViewApproval(row)">
+              <el-button type="primary" link size="small" @click="handleViewApproval(row as BalanceLog)">
                 审批详情
               </el-button>
             </template>
             <template v-else-if="row.type !== 'reversal'">
-              <el-button type="warning" link size="small" @click="handleReversal(row)">
+              <el-button type="warning" link size="small" @click="handleReversal(row as BalanceLog)">
                 冲正
               </el-button>
             </template>
@@ -223,7 +223,7 @@ function typeTagType(type: string): "success" | "warning" | "danger" | "info" | 
     payment: "primary",
     refund: "warning",
     reversal: "danger",
-    adjustment: ""
+    adjustment: "info"
   }
   return map[type] || "info"
 }

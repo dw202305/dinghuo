@@ -15,6 +15,11 @@ use PHPUnit\Framework\Attributes\Test;
  * 本测试类直接验证 bcmath 计价公式的正确性（与源码公式完全一致），
  * 确保分/元转换、精度控制、大数运算无误。
  *
+ * 批次2a说明：源码金额取整已由 bcmul(...,0) 截断改为
+ * Money::roundHalfUpCent（ROUND_HALF_UP 到分，规范 7.2）；
+ * 本类保留 bcmul 截断行为用例仅用于验证 bcmath 库自身语义，
+ * 所有整积样例在两种口径下结果一致，不受影响。
+ *
  * 公式来源：dev_specification_v1.0 §7.2/§8.2，PRD §4.1-4.7
  */
 class PriceServiceTest extends TestCase
@@ -367,13 +372,16 @@ class PriceServiceTest extends TestCase
         // 大数乘法：350.0cm × 29999分/米
         $widthM = bcdiv('350', '100', self::MONEY_SCALE);
         $cost = bcmul($widthM, '29999', 0);
-        $this->assertSame('104997', $cost); // 3.5 × 29999 = 104996.5 → 截断到104996
+        $this->assertSame('104996', $cost); // 3.5 × 29999 = 104996.5 → bcmul(scale=0) 截断到104996
+        // 注：源码已改用 Money::roundHalfUpCent（同例应为 104997），
+        // 此处仅验证 bcmul 库自身的截断语义
         // bcmul with scale=0 truncates, not rounds
         $this->assertIsString($cost);
     }
 
     /**
-     * 精度验证：bcmul 截断行为确认
+     * 精度验证：bcmul 截断行为确认（仅验证 bcmath 库语义，
+     * 源码金额取整已改用 Money::roundHalfUpCent）
      */
     #[Test]
     public function testPrecisionBcmulTruncation(): void
@@ -433,9 +441,10 @@ class PriceServiceTest extends TestCase
             $grandTotal = bcadd($grandTotal, $price, 0);
         }
 
-        // 验证总额 > 10000元(1000000分)
-        $this->assertSame(1, bccomp($grandTotal, '1000000', 0),
-            "总额 {$grandTotal} 分应大于 1000000 分(10000元)");
+        // 验证总额为确定值：5 副窗帘（宽 200~240cm、高 250~330cm）精确汇总 = 827500 分（8275 元）
+        $this->assertSame('827500', $grandTotal, '大额订单总额应为精确的整数分');
+        $this->assertSame(1, bccomp($grandTotal, '800000', 0),
+            "总额 {$grandTotal} 分应大于 800000 分(8000元)");
 
         // 验证每副窗帘金额都是正整数（分）
         foreach ($itemPrices as $i => $price) {
