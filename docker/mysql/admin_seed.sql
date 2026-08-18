@@ -159,6 +159,7 @@ WHERE id IN (4, 26, 27, 39, 40, 41, 42);
 -- 7. 插入默认超管账号
 -- 密码：admin123 （bcrypt hash）
 -- 生成方式：php -r "echo password_hash('admin123', PASSWORD_DEFAULT);"
-INSERT INTO `lj_admin` (`id`, `username`, `password_hash`, `real_name`, `phone`, `email`, `is_super_admin`, `role_id`, `status`)
+-- 注：lj_admin 无 is_super_admin 列，超管身份由 role_id=1（超级管理员角色）表达
+INSERT INTO `lj_admin` (`id`, `username`, `password_hash`, `real_name`, `phone`, `email`, `role_id`, `status`)
 VALUES
-(1, 'admin', '$2y$10$xwRAV9JBVBFyq9ttDWEZIegJkcv4YF1rGwOlM9Vj60B6jjMfezKDG', '超级管理员', '13800000000', 'admin@shishang.com', 1, 1, 1);
+(1, 'admin', '$2y$10$xwRAV9JBVBFyq9ttDWEZIegJkcv4YF1rGwOlM9Vj60B6jjMfezKDG', '超级管理员', '13800000000', 'admin@shishang.com', 1, 1);

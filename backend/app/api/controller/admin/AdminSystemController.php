@@ -27,7 +27,7 @@ class AdminSystemController extends BaseController
 
         $query = Db::name('admin')
             ->alias('a')
-            ->leftJoin('role r', 'r.id = a.role_id');
+            ->leftJoin('admin_role r', 'r.id = a.role_id');
 
         if ($keyword = $request->param('keyword', '')) {
             $query->where('a.username|a.real_name|a.phone', 'like', '%' . $keyword . '%');
@@ -125,8 +125,8 @@ class AdminSystemController extends BaseController
     {
         [$page, $pageSize] = $this->getPageParams();
 
-        $total = Db::name('role')->count();
-        $list  = Db::name('role')
+        $total = Db::name('admin_role')->count();
+        $list  = Db::name('admin_role')
             ->order('sort_order', 'asc')
             ->page($page, $pageSize)
             ->select()
@@ -164,12 +164,12 @@ class AdminSystemController extends BaseController
         if ($roleId > 0) {
             unset($data['role_id']);
             $data['updated_at'] = date('Y-m-d H:i:s');
-            Db::name('role')->where('id', $roleId)->update($data);
+            Db::name('admin_role')->where('id', $roleId)->update($data);
             return $this->success(['role_id' => $roleId]);
         }
 
         $data['created_at'] = date('Y-m-d H:i:s');
-        $newId = Db::name('role')->insertGetId($data);
+        $newId = Db::name('admin_role')->insertGetId($data);
         return $this->success(['role_id' => $newId]);
     }
 
@@ -190,7 +190,7 @@ class AdminSystemController extends BaseController
             return $this->error('该角色下仍有管理员使用，无法删除', 1006);
         }
 
-        Db::name('role')->where('id', $roleId)->delete();
+        Db::name('admin_role')->where('id', $roleId)->delete();
 
         return $this->success(null, '删除成功');
     }
@@ -201,7 +201,7 @@ class AdminSystemController extends BaseController
      */
     public function permissionTree(): \think\Response
     {
-        $permissions = Db::name('permission')
+        $permissions = Db::name('admin_permission')
             ->order('sort_order', 'asc')
             ->select()
             ->toArray();

@@ -43,7 +43,6 @@ class AdminPartnerController extends BaseController
                 'sp.name as primary_sales_name', 'p.status',
                 'p.cooperation_start_date', 'p.cooperation_end_date',
             ])
-            ->withCount(['stores' => function ($q) { $q->where('status', 1); }])
             ->order('p.id', 'desc')
             ->page($page, $pageSize)
             ->select()
@@ -51,7 +50,11 @@ class AdminPartnerController extends BaseController
 
         $statusMap = [1 => '正常', 2 => '停用'];
         foreach ($list as &$item) {
-            $item['store_count']   = $item['stores_count'] ?? 0;
+            // Db 查询构造器无 withCount，逐行统计有效下属门店数
+            $item['store_count']   = Db::name('store')
+                ->where('partner_id', $item['partner_id'])
+                ->where('status', 1)
+                ->count();
             $item['status_text']   = $statusMap[$item['status']] ?? '';
         }
 

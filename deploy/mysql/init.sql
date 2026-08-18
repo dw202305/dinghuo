@@ -1,8 +1,9 @@
 -- 世尚门店订货系统 数据库初始化脚本
--- 版本：v1.3（基于 database.md v1.2 + 批次2a增补，31张表）
+-- 版本：v1.3.1（基于 database.md v1.2 + 批次2a增补，32张表）
 -- 生成日期：2026-08-18
 -- 金额单位：分（BIGINT），尺寸单位：厘米/米，面积单位：平方米
 -- v1.3 变更：lj_order 增 audit_type；新增 lj_kit / lj_sequence / lj_order_status_history
+-- v1.3.1 变更：新增 lj_sales_person（销售人员表，补齐管理端列表 join 缺失表）
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -285,6 +286,32 @@ CREATE TABLE `lj_sales` (
   UNIQUE KEY `uk_sales_employee_no` (`employee_no`),
   KEY `idx_sales_employment_status` (`employment_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公司销售人员表';
+
+-- ========================================
+-- 2.8.1 销售人员表 lj_sales_person（v1.3.1 新增）
+-- ========================================
+-- 字段依据：管理端控制器以 leftJoin('sales_person sp', 'sp.id = xx.primary_sales_id')
+--           引用并读取 sp.id / sp.name；按 PRD v3.2 §4.0 三层归属模型补充
+--           角色、合伙人归属、状态等列以支持销售转交（§4.0.3.1）
+CREATE TABLE `lj_sales_person` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `employee_no` VARCHAR(20) DEFAULT NULL COMMENT '员工编号',
+  `name` VARCHAR(50) NOT NULL COMMENT '姓名',
+  `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号',
+  `role` TINYINT NOT NULL DEFAULT 1 COMMENT '销售角色：1总部销售 2城市合伙人渠道销售',
+  `partner_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '所属城市合伙人ID，总部销售为空',
+  `superior_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '上级销售或主管ID',
+  `responsible_region` VARCHAR(200) DEFAULT NULL COMMENT '负责区域',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1在职 2离职 3调岗停用',
+  `hire_date` DATE DEFAULT NULL COMMENT '入职日期',
+  `leave_date` DATE DEFAULT NULL COMMENT '离职日期',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sales_person_employee_no` (`employee_no`),
+  KEY `idx_sales_person_partner_id` (`partner_id`),
+  KEY `idx_sales_person_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销售人员表（PRD 4.0 销售归属模型）';
 
 -- ========================================
 -- 2.9 订单表 lj_order

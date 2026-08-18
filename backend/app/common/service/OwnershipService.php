@@ -75,10 +75,10 @@ class OwnershipService extends BaseService
             if ($partner) {
                 $rule = 'inherited_from_partner';
 
-                // 继承合伙人的公司销售（deploy 表名 lj_sales）
+                // 继承合伙人的公司销售（v1.3.1 统一使用 lj_sales_person）
                 $salesId = $partner['primary_sales_id'] ?? null;
                 if ($salesId) {
-                    $sales = Db::name('sales')->where('id', $salesId)->find();
+                    $sales = Db::name('sales_person')->where('id', $salesId)->find();
                     $salesName = $sales['name'] ?? null;
                 }
             }
@@ -88,7 +88,7 @@ class OwnershipService extends BaseService
         if (!$partnerId || !$partner) {
             $salesId = $store['primary_sales_id'] ?? null;
             if ($salesId) {
-                $sales = Db::name('sales')->where('id', $salesId)->find();
+                $sales = Db::name('sales_person')->where('id', $salesId)->find();
                 $salesName = $sales['name'] ?? null;
             }
             $rule = 'direct_store_sales';
@@ -174,9 +174,9 @@ class OwnershipService extends BaseService
      */
     public function handleSalesTransfer(int $fromSalesId, int $toSalesId, array $options = []): array
     {
-        // 校验销售人员存在性（deploy 表名 lj_sales）
-        $fromSales = Db::name('sales')->where('id', $fromSalesId)->find();
-        $toSales = Db::name('sales')->where('id', $toSalesId)->find();
+        // 校验销售人员存在性（v1.3.1 统一使用 lj_sales_person）
+        $fromSales = Db::name('sales_person')->where('id', $fromSalesId)->find();
+        $toSales = Db::name('sales_person')->where('id', $toSalesId)->find();
 
         if (!$fromSales || !$toSales) {
             throw new ValidateException('销售人员不存在');
@@ -325,7 +325,7 @@ class OwnershipService extends BaseService
     {
         $partner = Db::name('partner')
             ->alias('p')
-            ->leftJoin('sales ss', 'ss.id = p.primary_sales_id')
+            ->leftJoin('sales_person ss', 'ss.id = p.primary_sales_id')
             ->where('p.id', $partnerId)
             ->field([
                 'p.id as partner_id',
