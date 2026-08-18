@@ -2,7 +2,7 @@ import type { ApiResponse } from '@/types/api';
 import { useAuthStore } from '@/stores/auth';
 
 /** 基础URL（优先读取环境变量 VITE_API_BASE_URL） */
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.shishang.com/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.shengshikunyuan.com/api/v1';
 
 /**
  * 业务错误码 → 用户友好提示映射
