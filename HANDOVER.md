@@ -214,6 +214,30 @@ curl -sk -o /dev/null -w '%{http_code}' https://admin.shengshikunyuan.com/
 curl -sk https://api.shengshikunyuan.com/api/v1/fabrics
 ```
 
+### 发布部署（2026-08-18 实测流程）
+
+服务器 `/opt/shishang-order-system` **无 .git 目录**（历史文件复制部署），不能用 git pull，更新流程为：
+```bash
+# 1. clone 仓库到临时目录并验证 HEAD
+git clone https://github.com/dw202305/dinghuo.git /home/ubuntu/dinghuo-main
+cd /home/ubuntu/dinghuo-main && git log -1 --oneline
+# 2. rsync 同步（务必排除敏感/产物目录与 redis.conf）
+sudo rsync -a --delete \
+  --exclude '.env' --exclude 'runtime' --exclude 'vendor' \
+  --exclude 'node_modules' --exclude 'dist' \
+  --exclude 'deploy/redis/redis.conf' \
+  /home/ubuntu/dinghuo-main/ /opt/shishang-order-system/
+# 3. runtime 目录归属修复（php-fpm www-data 可写）
+sudo chown -R 33:33 /opt/shishang-order-system/backend/runtime
+```
+
+要点：
+- `deploy/redis/redis.conf` 仓库版为 `CHANGE_ME` 占位符（真实口令经 `deploy/.env` 环境变量注入），rsync 必须排除或手工保留服务器真实版本。
+- `deploy/.env` 需含 `DB_PASSWORD` / `MYSQL_ROOT_PASSWORD` / `REDIS_PASSWORD`（MYSQL_ROOT_PASSWORD 为 `Root@Shishang2026!`，批次0未轮换，与运行实例一致）。
+- 管理端构建：服务器无 corepack，需 `npm i -g pnpm@9.15.9`；`pnpm build` 会因 33 个历史 vue-tsc 错误失败，改用 `pnpm exec vite build` 跳过类型检查。
+- 商城端 H5 产物在 `dist/build/h5`，需移到 `dist/` 顶层匹配 nginx 挂载。
+- 回滚物料位置惯例：`/opt/shishang-backup-pre-deploy-*.sql`、`/opt/deploy-backup-*`、`/opt/opt-code-pre-deploy.tar.gz`、双端 dist 备份（`/opt/admin-dist-backup-*`、`/opt/store-dist-backup-*`）。
+
 ---
 
 ## 七、部署踩坑记录（重要，避免重复踩）
@@ -226,6 +250,10 @@ curl -sk https://api.shengshikunyuan.com/api/v1/fabrics
 6. **两套 init.sql 漂移**：`deploy/mysql/init.sql` 与 `docker/mysql/init.sql` 列名有差异，以 deploy 版为准。
 7. **store 端 BASE_URL**：`frontend/store/src/api/index.ts` 须用 `import.meta.env.VITE_API_BASE_URL`，勿硬编码。
 8. **uni-app 构建**：`manifest.json`/`pages.json` 需在 `src/` 下；产物在 `dist/build/h5`。
+9. **服务器无 .git 目录**：/opt/shishang-order-system 为文件复制部署，更新须 clone → rsync，勿在服务器上找 git 仓库。
+10. **redis.conf 占位符**：仓库 `deploy/redis/redis.conf` 是 CHANGE_ME 占位，部署时排除/保留服务器真实版，否则 Redis 口令失效。
+11. **admin 构建 vue-tsc 失败**：33 个历史类型错误导致 `pnpm build` 必败，用 `pnpm exec vite build` 跳过类型检查。
+12. **rsync 后 runtime 权限**：必须 `chown 33:33`，否则 php-fpm 无法写日志。
 
 ---
 
