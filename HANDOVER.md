@@ -143,7 +143,7 @@ shishang-order-system/
 | fabricStock 数据源 | 接口已返回数组结构，实际库存数据源待接入 | 中 |
 | 统计报表 | PRD 首期要求，未实现 | 中 |
 | OSS 图片上传 | 未实现 | 中 |
-| 管理端 39 个 vue-tsc 类型错误 | 构建当前跳过类型检查（原命令备份在 package.json.bak）；不影响运行 | 低 |
+| ~~管理端 vue-tsc 类型错误~~ | 已于 2026-08-18 全部清零，`pnpm build`（vue-tsc --noEmit && vite build）完整门禁本地与服务器均验证通过；tsc-errors.txt 快照已删除 | 已关闭 |
 | 服务器源码同步 | 服务器 /opt 代码与 git 仓库可能漂移，建议用 git pull 保持一致 | 低 |
 
 ### 2026-08-18 全量修复概述
@@ -198,7 +198,7 @@ composer config -g repo.packagist composer https://mirrors.cloud.tencent.com/com
 
 ### 前端构建
 ```bash
-# 管理端（2026-08-18 起改用 pnpm，lockfile 已入库；当前 build 仍跳过 vue-tsc）
+# 管理端（2026-08-18 起改用 pnpm，lockfile 已入库；build 为完整门禁 vue-tsc --noEmit && vite build，2026-08-18 类型错误已清零）
 cd /opt/shishang-order-system/frontend/admin
 corepack enable && pnpm install --frozen-lockfile && pnpm build
 # 商城端 H5（产物在 dist/build/h5，需移到 dist/ 顶层匹配 nginx 挂载）
@@ -234,7 +234,7 @@ sudo chown -R 33:33 /opt/shishang-order-system/backend/runtime
 要点：
 - `deploy/redis/redis.conf` 仓库版为 `CHANGE_ME` 占位符（真实口令经 `deploy/.env` 环境变量注入），rsync 必须排除或手工保留服务器真实版本。
 - `deploy/.env` 需含 `DB_PASSWORD` / `MYSQL_ROOT_PASSWORD` / `REDIS_PASSWORD`（MYSQL_ROOT_PASSWORD 为 `Root@Shishang2026!`，批次0未轮换，与运行实例一致）。
-- 管理端构建：服务器无 corepack，需 `npm i -g pnpm@9.15.9`；`pnpm build` 会因 33 个历史 vue-tsc 错误失败，改用 `pnpm exec vite build` 跳过类型检查。
+- 管理端构建：服务器无 corepack，需 `npm i -g pnpm@9.15.9`；2026-08-18 起 vue-tsc 类型错误已全部清零，直接 `pnpm build`（完整门禁 vue-tsc --noEmit && vite build）即可，无需再跳过类型检查。
 - 商城端 H5 产物在 `dist/build/h5`，需移到 `dist/` 顶层匹配 nginx 挂载。
 - 回滚物料位置惯例：`/opt/shishang-backup-pre-deploy-*.sql`、`/opt/deploy-backup-*`、`/opt/opt-code-pre-deploy.tar.gz`、双端 dist 备份（`/opt/admin-dist-backup-*`、`/opt/store-dist-backup-*`）。
 
@@ -252,7 +252,7 @@ sudo chown -R 33:33 /opt/shishang-order-system/backend/runtime
 8. **uni-app 构建**：`manifest.json`/`pages.json` 需在 `src/` 下；产物在 `dist/build/h5`。
 9. **服务器无 .git 目录**：/opt/shishang-order-system 为文件复制部署，更新须 clone → rsync，勿在服务器上找 git 仓库。
 10. **redis.conf 占位符**：仓库 `deploy/redis/redis.conf` 是 CHANGE_ME 占位，部署时排除/保留服务器真实版，否则 Redis 口令失效。
-11. **admin 构建 vue-tsc 失败**：33 个历史类型错误导致 `pnpm build` 必败，用 `pnpm exec vite build` 跳过类型检查。
+11. **admin 构建已恢复完整门禁**：2026-08-18 vue-tsc 类型错误已清零，`pnpm build`（vue-tsc --noEmit && vite build）本地/服务器均验证通过，不再需要 `pnpm exec vite build` 跳过类型检查。
 12. **rsync 后 runtime 权限**：必须 `chown 33:33`，否则 php-fpm 无法写日志。
 
 ---

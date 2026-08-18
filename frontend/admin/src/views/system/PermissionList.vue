@@ -66,10 +66,10 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
-          <template #default="{ row }: { row: PermissionNode }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
-            <el-button type="success" link size="small" @click="openCreateDialog(row)">新增子权限</el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="openEditDialogAction(row)">编辑</el-button>
+            <el-button type="success" link size="small" @click="openCreateDialogAction(row)">新增子权限</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteAction(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -160,6 +160,7 @@
 import { ref, reactive, onMounted, computed } from "vue"
 import { Plus } from "@element-plus/icons-vue"
 import { ElMessage, type FormInstance, type FormRules } from "element-plus"
+import type { DefaultRow } from "@/types/element-plus"
 import { getPermissionTree, savePermission, deletePermission } from "@/api/system"
 import type { PermissionNode } from "@/types/admin"
 import ConfirmDialog from "@/components/ConfirmDialog.vue"
@@ -269,6 +270,19 @@ const parentOptions = computed<PermissionNode[]>(() => {
   // 仅展示菜单类型（type=1）作为可选的父节点
   return permissionTree.value.filter((n) => n.permission_type === 1)
 })
+
+/** 操作列按钮适配（DefaultRow 为 el-table 插槽的通用行类型，行数据实际为权限树节点 PermissionNode） */
+function openEditDialogAction(row: DefaultRow): void {
+  openEditDialog(row as PermissionNode)
+}
+
+function openCreateDialogAction(row: DefaultRow): void {
+  openCreateDialog(row as PermissionNode)
+}
+
+function handleDeleteAction(row: DefaultRow): void {
+  handleDelete(row as PermissionNode)
+}
 
 /**
  * 打开新增权限弹窗

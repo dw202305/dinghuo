@@ -95,13 +95,13 @@
               inline-prompt
               active-text="启"
               inactive-text="停"
-              @change="(val: string | number | boolean) => handleToggleEnabled(row as AccessoryItem & { _toggling?: boolean }, val === true)"
+              @change="(val) => onSwitchChange(row, val)"
             />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="90" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row as AccessoryItem)">编辑</el-button>
+            <el-button type="primary" link size="small" @click="openEditDialogAction(row)">编辑</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -216,6 +216,7 @@
 import { ref, reactive } from "vue"
 import { Plus, Picture } from "@element-plus/icons-vue"
 import { ElMessage, type FormInstance, type FormRules } from "element-plus"
+import type { DefaultRow } from "@/types/element-plus"
 import { getAccessoryList, saveAccessory, toggleAccessoryEnabled } from "@/api/accessory"
 import type { AccessoryItem, AccessorySaveParams } from "@/types/product"
 import { formatMoney } from "@/utils/format"
@@ -285,7 +286,16 @@ const {
   }
 })
 
-/** 启用/停用 */
+/** 启用/停用开关变更（模板内不允许类型标注，统一在此收口类型；DefaultRow 为 el-table 插槽的通用行类型） */
+function onSwitchChange(row: DefaultRow, val: string | number | boolean): void {
+  void handleToggleEnabled(row as AccessoryItem & { _toggling?: boolean }, val === true)
+}
+
+/** 编辑按钮（精确类型断言：行数据由 fetchApi 类型约束为 AccessoryItem） */
+function openEditDialogAction(row: DefaultRow): void {
+  openEditDialog(row as AccessoryItem)
+}
+
 async function handleToggleEnabled(row: AccessoryItem & { _toggling?: boolean }, val: boolean): Promise<void> {
   row._toggling = true
   try {

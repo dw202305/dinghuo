@@ -134,11 +134,11 @@
               type="success"
               link
               size="small"
-              @click="handleMarkComplete(row)"
+              @click="handleMarkCompleteAction(row)"
             >
               标记完成
             </el-button>
-            <el-button type="info" link size="small" @click="handlePrint(row)">
+            <el-button type="info" link size="small" @click="handlePrintAction(row)">
               打印
             </el-button>
           </template>
@@ -214,6 +214,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue"
 import { ElMessage } from "element-plus"
+import type { DefaultRow } from "@/types/element-plus"
 import {
   getProductionList,
   getProductionDetail,
@@ -330,6 +331,11 @@ const completeMessage = computed(() => {
   return `确定要将生产单「${completeTargetNo.value}」标记为已完成吗？`
 })
 
+/** 标记完成按钮（DefaultRow 为 el-table 插槽的通用行类型，行数据由 fetchApi 类型约束为 ProductionListItem） */
+function handleMarkCompleteAction(row: DefaultRow): void {
+  handleMarkComplete(row as ProductionListItem)
+}
+
 /**
  * 标记单个完成
  */
@@ -368,6 +374,11 @@ async function handleBatchComplete(): Promise<void> {
   } catch {
     // 错误已由拦截器处理
   }
+}
+
+/** 打印按钮 */
+function handlePrintAction(row: DefaultRow): void {
+  void handlePrint(row as ProductionListItem)
 }
 
 /**

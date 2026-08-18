@@ -98,7 +98,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.listing_status === 1"
-              @change="(val: string | number | boolean) => handleToggleStatus(row as FabricListItem & { _toggling?: boolean }, val === true)"
+              @change="(val) => onSwitchChange(row, val)"
               :loading="row._toggling"
               inline-prompt
               active-text="上"
@@ -111,10 +111,10 @@
             <el-button type="primary" link size="small" @click="$router.push(`/fabric/form/${row.id}`)">
               编辑
             </el-button>
-            <el-button type="warning" link size="small" @click="handleToggleStatus(row as FabricListItem & { _toggling?: boolean }, row.listing_status !== 1)">
+            <el-button type="warning" link size="small" @click="handleToggleStatusAction(row, row.listing_status !== 1)">
               {{ row.listing_status ? "下架" : "上架" }}
             </el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row as FabricListItem)">删除</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteAction(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -142,6 +142,7 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import { ElMessage } from "element-plus"
+import type { DefaultRow } from "@/types/element-plus"
 import { Plus, Picture } from "@element-plus/icons-vue"
 import { getFabricList, toggleFabricStatus, deleteFabric } from "@/api/fabric"
 import type { FabricListItem } from "@/types/fabric"
@@ -191,7 +192,21 @@ const {
   }
 })
 
-/** 上架/下架 */
+/** 上架/下架开关变更（模板内不允许类型标注，统一在此收口类型；DefaultRow 为 el-table 插槽的通用行类型） */
+function onSwitchChange(row: DefaultRow, val: string | number | boolean): void {
+  void handleToggleStatus(row as FabricListItem & { _toggling?: boolean }, val === true)
+}
+
+/** 上架/下架按钮（精确类型断言：行数据由 fetchApi 类型约束为 FabricListItem） */
+function handleToggleStatusAction(row: DefaultRow, val: boolean): void {
+  void handleToggleStatus(row as FabricListItem & { _toggling?: boolean }, val)
+}
+
+/** 删除按钮 */
+function handleDeleteAction(row: DefaultRow): void {
+  handleDelete(row as FabricListItem)
+}
+
 async function handleToggleStatus(row: FabricListItem & { _toggling?: boolean }, val: boolean): Promise<void> {
   row._toggling = true
   try {

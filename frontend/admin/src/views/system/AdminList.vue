@@ -68,7 +68,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.status === 1"
-              @change="(val: string | number | boolean) => handleToggleStatus(row as AdminInfo & { _statusToggling?: boolean }, val === true)"
+              @change="(val) => onSwitchChange(row, val)"
               :loading="row._statusToggling"
               inline-prompt
               active-text="启"
@@ -88,9 +88,9 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row as AdminInfo)">编辑</el-button>
-            <el-button type="warning" link size="small" @click="handleResetPassword(row as AdminInfo)">重置密码</el-button>
-            <el-button type="danger" link size="small" @click="handleDeleteAdmin(row as AdminInfo)">删除</el-button>
+            <el-button type="primary" link size="small" @click="openEditDialogAction(row)">编辑</el-button>
+            <el-button type="warning" link size="small" @click="handleResetPasswordAction(row)">重置密码</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteAdminAction(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -181,6 +181,7 @@
 import { ref, reactive, onMounted } from "vue"
 import { Plus } from "@element-plus/icons-vue"
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from "element-plus"
+import type { DefaultRow } from "@/types/element-plus"
 import { getAdminList, saveAdmin, deleteAdmin, resetAdminPassword, updateAdminStatus, getAllRoles } from "@/api/system"
 import type { AdminInfo } from "@/types/admin"
 import type { RoleInfo } from "@/types/admin"
@@ -246,7 +247,24 @@ onMounted(async () => {
   }
 })
 
-/** 启用/禁用 */
+/** 启用/禁用开关变更（模板内不允许类型标注，统一在此收口类型；DefaultRow 为 el-table 插槽的通用行类型） */
+function onSwitchChange(row: DefaultRow, val: string | number | boolean): void {
+  void handleToggleStatus(row as AdminInfo & { _statusToggling?: boolean }, val === true)
+}
+
+/** 操作列按钮（精确类型断言：行数据由 fetchApi 类型约束为 AdminInfo） */
+function openEditDialogAction(row: DefaultRow): void {
+  openEditDialog(row as AdminInfo)
+}
+
+function handleResetPasswordAction(row: DefaultRow): void {
+  void handleResetPassword(row as AdminInfo)
+}
+
+function handleDeleteAdminAction(row: DefaultRow): void {
+  handleDeleteAdmin(row as AdminInfo)
+}
+
 async function handleToggleStatus(row: AdminInfo & { _statusToggling?: boolean }, val: boolean): Promise<void> {
   row._statusToggling = true
   try {

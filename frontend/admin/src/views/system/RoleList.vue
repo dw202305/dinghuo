@@ -41,10 +41,10 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
-          <template #default="{ row }: { row: RoleInfo }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
-            <el-button type="success" link size="small" @click="openPermDialog(row)">分配权限</el-button>
-            <el-button type="danger" link size="small" @click="handleDeleteRole(row)">删除</el-button>
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="openEditDialogAction(row)">编辑</el-button>
+            <el-button type="success" link size="small" @click="openPermDialogAction(row)">分配权限</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteRoleAction(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -178,6 +178,7 @@
 import { ref, reactive, onMounted } from "vue"
 import { Plus } from "@element-plus/icons-vue"
 import { ElMessage, type FormInstance, type FormRules } from "element-plus"
+import type { DefaultRow } from "@/types/element-plus"
 import type { ElTree } from "element-plus"
 import { getRoleList, saveRole, deleteRole, getPermissionTree } from "@/api/system"
 import type { RoleInfo, PermissionNode, RoleSaveParams } from "@/types/admin"
@@ -239,6 +240,19 @@ function openCreateDialog(): void {
   roleForm.description = ""
   roleForm.status = 1
   roleDialogVisible.value = true
+}
+
+/** 操作列按钮适配（DefaultRow 为 el-table 插槽的通用行类型，行数据由 fetchApi 类型约束为 RoleInfo） */
+function openEditDialogAction(row: DefaultRow): void {
+  openEditDialog(row as RoleInfo)
+}
+
+function openPermDialogAction(row: DefaultRow): void {
+  void openPermDialog(row as RoleInfo)
+}
+
+function handleDeleteRoleAction(row: DefaultRow): void {
+  handleDeleteRole(row as RoleInfo)
 }
 
 /**
