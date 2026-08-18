@@ -1,6 +1,7 @@
 /**
  * 财务管理 API（后台）
- * 对应后端旧版路由前缀: /api/v1/admin/
+ * 对齐后端新版路由前缀: /api/v1/admin/finance/*、/api/v1/admin/invoices
+ * 注：payment_channel 已改为字符串枚举（balance/wechat/alipay），见 docs/api-patch-20260818.md §2.1
  */
 
 import { get, post } from "./index"
@@ -28,7 +29,8 @@ export interface PaymentRecord {
   payment_no: string
   order_no: string
   store_name: string
-  pay_channel: number
+  /** 支付渠道：balance/wechat/alipay（api-patch §2.1：int → string） */
+  payment_channel: string
   pay_channel_text: string
   pay_amount: string
   pay_status: number
@@ -55,13 +57,13 @@ export interface InvoiceItem {
 
 /**
  * 获取支付记录列表（收款记录）
- * 对应后端路由: GET /api/v1/admin/finance/payment/list
+ * 对应后端路由: GET /api/v1/admin/finance/payments
  */
 export function getPaymentList(params: Record<string, unknown>) {
-  return get<PaginatedData<ReceiptRecord>>("/admin/finance/payment/list", params)
+  return get<PaginatedData<ReceiptRecord>>("/admin/finance/payments", params)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/payment-detail
+// 后端需补路由：新版无收款详情端点
 /**
  * 获取收款详情
  */
@@ -69,7 +71,7 @@ export function getPaymentDetail(paymentId: number) {
   return get<ReceiptDetail>("/admin/finance/payment-detail", { payment_id: paymentId })
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/mark-received
+// 后端需补路由：新版无标记已收款端点
 /**
  * 标记已收款
  */
@@ -77,44 +79,44 @@ export function markPaymentReceived(params: Record<string, unknown>) {
   return post<null>("/admin/finance/mark-received", params)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/invoice-list（有 /admin/invoice/list）
 /**
  * 获取发票申请列表
+ * 对应后端路由: GET /api/v1/admin/invoices
  */
 export function getInvoiceList(params: Record<string, unknown>) {
-  return get<PaginatedData<InvoiceItem>>("/admin/finance/invoice-list", params)
+  return get<PaginatedData<InvoiceItem>>("/admin/invoices", params)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/invoice-detail
 /**
  * 获取发票详情
+ * 对应后端路由: GET /api/v1/admin/invoices/:id（控制器读 request_id 参数）
  */
 export function getInvoiceDetail(requestId: number) {
-  return get<InvoiceDetail>("/admin/finance/invoice-detail", { request_id: requestId })
+  return get<InvoiceDetail>(`/admin/invoices/${requestId}`, { request_id: requestId })
 }
 
 /**
  * 发票审核
- * 对应后端路由: POST /api/v1/admin/finance/invoice/review
+ * 对应后端路由: POST /api/v1/admin/finance/invoices/review
  */
 export function reviewInvoice(params: Record<string, unknown>) {
-  return post<null>("/admin/finance/invoice/review", params)
+  return post<null>("/admin/finance/invoices/review", params)
 }
 
 /**
  * 开具发票（更新状态为已开票）
- * 对应后端路由: POST /api/v1/admin/finance/invoice/review
+ * 对应后端路由: POST /api/v1/admin/invoices/:id/issue
  */
 export function issueInvoice(requestId: number, invoiceNo: string, invoiceCode: string) {
-  return post<null>("/admin/finance/invoice/review", { request_id: requestId, action: 2, invoice_no: invoiceNo, invoice_code: invoiceCode })
+  return post<null>(`/admin/invoices/${requestId}/issue`, { request_id: requestId, invoice_no: invoiceNo, invoice_code: invoiceCode })
 }
 
 /**
  * 作废发票
- * 对应后端路由: POST /api/v1/admin/finance/invoice/review
+ * 对应后端路由: POST /api/v1/admin/finance/invoices/review（action=3 驳回）
  */
 export function invalidateInvoice(requestId: number, reason: string) {
-  return post<null>("/admin/finance/invoice/review", { request_id: requestId, action: 3, reject_reason: reason })
+  return post<null>("/admin/finance/invoices/review", { request_id: requestId, action: 3, reject_reason: reason })
 }
 
 /**
@@ -125,7 +127,7 @@ export function exportReconciliation(params: Record<string, unknown>) {
   return get<{ file_url: string }>("/admin/finance/reconciliation/export", params)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/reconciliation-summary
+// 后端需补路由：新版无对账汇总端点（仅 GET /admin/finance/reconciliation，返回结构不同）
 /**
  * 获取资金对账汇总
  */
@@ -133,7 +135,7 @@ export function getReconciliationSummary(params: ReconciliationParams): Promise<
   return get<ReconciliationSummary>("/admin/finance/reconciliation-summary", params as unknown as Record<string, unknown>)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/reconciliation-detail
+// 后端需补路由：新版无对账明细端点
 /**
  * 获取资金对账明细
  */
@@ -143,7 +145,7 @@ export function getReconciliationDetail(params: ReconciliationDetailParams): Pro
 
 /** ============================================
  *  储值账户 & 余额相关 API
- *  对应后端旧版路由前缀: /api/v1/admin/finance/*
+ *  对应后端新版路由前缀: /api/v1/admin/finance/*
  *  ============================================ */
 
 /**
@@ -164,7 +166,7 @@ export function getBalanceAccountDetail(id: number) {
   return get<AccountListResult>("/admin/finance/customer-accounts", { id } as Record<string, unknown>)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/adjust-balance
+// 后端需补路由：新版无余额调整端点
 /**
  * 调整客户余额（需审批记录）
  */
@@ -201,29 +203,29 @@ export function toggleAccountFreeze(accountId: number, freeze: boolean): Promise
 
 /**
  * 获取储值审核列表
- * 对应后端路由: GET /api/v1/admin/finance/recharge-audit/list
+ * 对应后端路由: GET /api/v1/admin/finance/recharge-audit
  */
 export function getRechargeAuditList(params: AuditListParams): Promise<AuditListResult> {
-  return get<AuditListResult>("/admin/finance/recharge-audit/list", params as unknown as Record<string, unknown>)
+  return get<AuditListResult>("/admin/finance/recharge-audit", params as unknown as Record<string, unknown>)
 }
 
 /**
  * 审核通过充值
- * 对应后端路由: POST /api/v1/admin/finance/recharge-audit/process
+ * 对应后端路由: POST /api/v1/admin/finance/recharge-audit/:id（id 为储值单主键）
  */
-export function approveRecharge(rechargeNo: string, remark?: string): Promise<void> {
-  return post<void>("/admin/finance/recharge-audit/process", { id: rechargeNo, action: 1, remark })
+export function approveRecharge(rechargeId: number, remark?: string): Promise<void> {
+  return post<void>(`/admin/finance/recharge-audit/${rechargeId}`, { action: 1, remark })
 }
 
 /**
  * 审核拒绝充值
- * 对应后端路由: POST /api/v1/admin/finance/recharge-audit/process
+ * 对应后端路由: POST /api/v1/admin/finance/recharge-audit/:id（id 为储值单主键）
  */
-export function rejectRecharge(rechargeNo: string, reason: string): Promise<void> {
-  return post<void>("/admin/finance/recharge-audit/process", { id: rechargeNo, action: 2, reason })
+export function rejectRecharge(rechargeId: number, reason: string): Promise<void> {
+  return post<void>(`/admin/finance/recharge-audit/${rechargeId}`, { action: 2, remark: reason })
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/recharge-audit-history
+// 后端需补路由：新版无审核历史端点
 /**
  * 获取审核历史记录
  */
@@ -231,7 +233,7 @@ export function getAuditHistory(rechargeNo: string): Promise<AuditHistoryItem[]>
   return get<AuditHistoryItem[]>("/admin/finance/recharge-audit-history", { recharge_no: rechargeNo })
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/balance-log-list
+// 后端需补路由：新版无余额流水列表端点
 /**
  * 获取余额流水列表
  */
@@ -239,7 +241,7 @@ export function getBalanceLogList(params: BalanceLogParams): Promise<BalanceLogR
   return get<BalanceLogResult>("/admin/finance/balance-log-list", params as unknown as Record<string, unknown>)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/balance-reversal
+// 后端需补路由：新版无冲正端点
 /**
  * 发起冲正（新建反向流水）
  */
@@ -247,7 +249,7 @@ export function createReversal(params: ReversalParams): Promise<void> {
   return post<void>("/admin/finance/balance-reversal", params)
 }
 
-// 后端需补路由：后端旧版没有 /admin/finance/offline-recharge
+// 后端需补路由：新版无线下充值端点
 /**
  * 线下充值（管理员操作）
  */

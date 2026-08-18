@@ -1,6 +1,6 @@
 /**
  * 商品管理 API（轨道）
- * 对应后端路由前缀: /api/v1/admin/product/track/*
+ * 对应后端新版路由前缀: /api/v1/admin/products/tracks
  */
 
 import { get, post } from "./index"
@@ -20,16 +20,16 @@ export interface TrackListParams {
 
 /**
  * 获取轨道列表
- * 对应后端路由: GET /api/v1/admin/product/track/list
+ * 对应后端路由: GET /api/v1/admin/products/tracks
  */
 export function getTrackList(params?: TrackListParams) {
-  return get<PaginatedData<TrackItem>>("/admin/product/track/list", params as unknown as Record<string, unknown>)
+  return get<PaginatedData<TrackItem>>("/admin/products/tracks", params as unknown as Record<string, unknown>)
 }
 
 /**
  * 新增/编辑轨道
- * 对应后端路由: POST /api/v1/admin/product/track/save
+ * 对应后端路由: POST /api/v1/admin/products/tracks
  */
 export function saveTrack(data: Partial<TrackItem>) {
-  return post<{ id: number }>("/admin/product/track/save", data)
+  return post<{ id: number }>("/admin/products/tracks", data)
 }

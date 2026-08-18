@@ -285,7 +285,7 @@ async function handleApprove(row: RechargeAuditRecord): Promise<void> {
       "审核通过",
       { confirmButtonText: "确认通过", cancelButtonText: "取消", type: "success" }
     )
-    await approveRecharge(row.recharge_no)
+    await approveRecharge(row.id)
     ElMessage.success("已通过")
     loadData()
   } catch {
@@ -300,6 +300,7 @@ const rejectLoading = ref<boolean>(false)
 const rejectFormRef = ref<FormInstance>()
 
 const rejectForm = reactive({
+  id: 0,
   rechargeNo: "",
   reason: ""
 })
@@ -312,6 +313,7 @@ const rejectRules: FormRules = {
 }
 
 function handleReject(row: RechargeAuditRecord): void {
+  rejectForm.id = row.id
   rejectForm.rechargeNo = row.recharge_no
   rejectForm.reason = ""
   rejectVisible.value = true
@@ -324,7 +326,7 @@ async function confirmReject(): Promise<void> {
 
   rejectLoading.value = true
   try {
-    await rejectRecharge(rejectForm.rechargeNo, rejectForm.reason)
+    await rejectRecharge(rejectForm.id, rejectForm.reason)
     ElMessage.success("已拒绝")
     rejectVisible.value = false
     loadData()

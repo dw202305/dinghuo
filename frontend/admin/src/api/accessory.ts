@@ -1,6 +1,6 @@
 /**
  * 选装配件管理 API（后台）
- * 对应后端路由前缀: /api/v1/admin/product/accessory/*
+ * 对应后端新版路由前缀: /api/v1/admin/products/accessories
  */
 
 import { get, post } from "./index"
@@ -19,18 +19,18 @@ export interface AccessoryListParams {
 
 /**
  * 获取配件列表
- * 对应后端路由: GET /api/v1/admin/product/accessory/list
+ * 对应后端路由: GET /api/v1/admin/products/accessories
  */
 export function getAccessoryList(params?: AccessoryListParams) {
-  return get<PaginatedData<AccessoryItem>>("/admin/product/accessory/list", params as unknown as Record<string, unknown>)
+  return get<PaginatedData<AccessoryItem>>("/admin/products/accessories", params as unknown as Record<string, unknown>)
 }
 
 /**
  * 新增/编辑配件
- * 对应后端路由: POST /api/v1/admin/product/accessory/save
+ * 对应后端路由: POST /api/v1/admin/products/accessories
  */
 export function saveAccessory(data: AccessorySaveParams) {
-  return post<{ id: number }>("/admin/product/accessory/save", data)
+  return post<{ id: number }>("/admin/products/accessories", data)
 }
 
 /**
@@ -38,5 +38,5 @@ export function saveAccessory(data: AccessorySaveParams) {
  * 后端无独立状态接口，复用 save 只更新 enabled 字段
  */
 export function toggleAccessoryEnabled(id: number, enabled: 0 | 1) {
-  return post<{ id: number }>("/admin/product/accessory/save", { id, enabled })
+  return post<{ id: number }>("/admin/products/accessories", { id, enabled })
 }

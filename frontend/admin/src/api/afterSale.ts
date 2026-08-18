@@ -1,5 +1,6 @@
 /**
  * 售后管理 API（后台）
+ * 对齐后端新版 RESTful 路由：/api/v1/admin/after-sales
  */
 
 import { get, post } from "./index"
@@ -42,35 +43,41 @@ export interface AfterSaleDetail extends AfterSaleListItem {
 
 /**
  * 获取售后列表
+ * 对应后端路由: GET /api/v1/admin/after-sales
  */
 export function getAfterSaleList(params: Record<string, unknown>) {
-  return get<PaginatedData<AfterSaleListItem>>("/admin/after-sale/list", params)
+  return get<PaginatedData<AfterSaleListItem>>("/admin/after-sales", params)
 }
 
 /**
  * 获取售后详情
+ * 对应后端路由: GET /api/v1/admin/after-sales/:id（控制器读 after_sale_id 参数）
  */
 export function getAfterSaleDetail(afterSaleId: number) {
-  return get<AfterSaleDetail>("/admin/after-sale/detail", { after_sale_id: afterSaleId })
+  return get<AfterSaleDetail>(`/admin/after-sales/${afterSaleId}`, { after_sale_id: afterSaleId })
 }
 
 /**
  * 处理售后
+ * 对应后端路由: POST /api/v1/admin/after-sales/:id/process（body 需含 after_sale_id）
  */
 export function processAfterSale(params: Record<string, unknown>) {
-  return post<null>("/admin/after-sale/process", params)
+  const afterSaleId = Number(params.after_sale_id ?? 0)
+  return post<null>(`/admin/after-sales/${afterSaleId}/process`, params)
 }
 
 /**
  * 分配处理人
+ * 对应后端路由: POST /api/v1/admin/after-sales/:id/process
  */
 export function assignAfterSaleHandler(afterSaleId: number, handlerId: number) {
-  return post<null>("/admin/after-sale/process", { after_sale_id: afterSaleId, handler_id: handlerId, status: 2 })
+  return post<null>(`/admin/after-sales/${afterSaleId}/process`, { after_sale_id: afterSaleId, handler_id: handlerId, status: 2 })
 }
 
 /**
  * 关闭售后
+ * 对应后端路由: POST /api/v1/admin/after-sales/:id/close
  */
 export function closeAfterSale(afterSaleId: number, closeReason: string) {
-  return post<null>("/admin/after-sale/close", { after_sale_id: afterSaleId, close_reason: closeReason })
+  return post<null>(`/admin/after-sales/${afterSaleId}/close`, { after_sale_id: afterSaleId, close_reason: closeReason })
 }

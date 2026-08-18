@@ -87,7 +87,7 @@ export interface TrackItem {
 
 /**
  * 面料批量调价请求参数
- * 对应后端 POST /api/v1/admin/product/fabric/batch-price
+ * 对应后端 POST /api/v1/admin/products/fabrics/batch-price
  * adjust_type: fixed=固定金额增减（元/㎡） percent=百分比调整
  */
 export interface FabricBatchPriceParams {

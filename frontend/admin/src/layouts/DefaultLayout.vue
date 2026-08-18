@@ -4,9 +4,10 @@
     <div class="layout__main" :class="{ 'layout__main--collapsed': appStore.sidebarCollapsed }">
       <Header />
       <main class="layout__content">
-        <router-view v-slot="{ Component }">
+        <router-view v-slot="{ Component, route: viewRoute }">
           <transition name="fade-transform" mode="out-in">
-            <component :is="Component" />
+            <!-- key 取完整路由：确保菜单切换/同组件参数变化时重建页面实例，不残留上一页 -->
+            <component :is="Component" :key="viewRoute.fullPath" />
           </transition>
         </router-view>
       </main>

@@ -1,11 +1,19 @@
 /**
  * 技术审核 API（后台）
- * 后端已有路由: POST /api/v1/admin/order/audit, GET /api/v1/admin/order/list
+ * 对齐后端新版路由: POST /api/v1/admin/orders/:id/audit, GET /api/v1/admin/orders
  */
 
 import { get, post } from "./index"
 import type { PaginatedData } from "@/types/api"
 import type { AuditSubmitParams } from "@/types/order"
+
+/** 审核动作 → 后端 audit_result 映射（1=通过 2=需确认 3=需补款 4=无法生产） */
+const AUDIT_RESULT_MAP: Record<string, number> = {
+  pass: 1,
+  need_confirm: 2,
+  need_supplement: 3,
+  cannot_produce: 4
+}
 
 /** 待审核窗帘明细项 */
 export interface AuditPendingItem {
@@ -28,13 +36,17 @@ export interface AuditPendingItem {
 
 /**
  * 获取待审核订单列表
- * 对应后端路由: GET /api/v1/admin/order/list，通过审核状态筛选
+ * 对应后端路由: GET /api/v1/admin/orders，通过订单状态筛选（status → order_status）
  */
 export function getAuditOrderList(params: { keyword?: string; status?: number; page?: number; page_size?: number }) {
-  return get<PaginatedData<AuditOrderGroup>>("/admin/order/list", params as unknown as Record<string, unknown>)
+  const { status, ...rest } = params
+  return get<PaginatedData<AuditOrderGroup>>("/admin/orders", {
+    ...rest,
+    order_status: status
+  } as unknown as Record<string, unknown>)
 }
 
-// 后端需补路由：后端新版有 GET /api/v1/admin/orders/:id/audit，旧版没有 audit/list
+// 后端需补路由：新版无待审核明细列表端点
 /**
  * 获取待审核列表（细粒度）
  */
@@ -42,7 +54,7 @@ export function getAuditList(params: { keyword?: string; page?: number; page_siz
   return get<PaginatedData<AuditPendingItem>>("/admin/audit/list", params as unknown as Record<string, unknown>)
 }
 
-// 后端需补路由：后端旧版没有 /admin/audit/detail
+// 后端需补路由：新版仅 GET /api/v1/admin/orders/:id/audit（订单级），无明细级审核详情
 /**
  * 获取审核详情
  */
@@ -52,7 +64,8 @@ export function getAuditDetail(itemId: number) {
 
 /**
  * 提交审核结果
- * 对应后端路由: POST /api/v1/admin/order/audit
+ * 对应后端路由: POST /api/v1/admin/orders/:id/audit
+ * 注：AuditSubmitParams 为明细级参数，当前无对应后端端点，暂保留旧路径待后端补齐
  */
 export function submitAudit(params: AuditSubmitParams) {
   return post<null>("/admin/order/audit", params)
@@ -95,8 +108,14 @@ export interface AuditOrderGroup {
 
 /**
  * 订单批量审核
- * 对应后端路由: POST /api/v1/admin/order/audit
+ * 对应后端路由: POST /api/v1/admin/orders/:id/audit（action 映射为 audit_result）
  */
 export function batchAuditOrder(orderId: number, action: string, remark: string, supplementAmount?: number, attachments?: string[]) {
-  return post<null>("/admin/order/audit", { order_id: orderId, action, remark, supplement_amount: supplementAmount, attachments })
+  return post<null>(`/admin/orders/${orderId}/audit`, {
+    order_id: orderId,
+    audit_result: AUDIT_RESULT_MAP[action] ?? 1,
+    overall_remark: remark,
+    supplement_amount: supplementAmount,
+    attachments
+  })
 }
