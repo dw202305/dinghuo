@@ -5,10 +5,9 @@
       <Header />
       <main class="layout__content">
         <router-view v-slot="{ Component, route: viewRoute }">
-          <transition name="fade-transform" mode="out-in">
-            <!-- key 取完整路由：确保菜单切换/同组件参数变化时重建页面实例，不残留上一页 -->
-            <component :is="Component" :key="viewRoute.fullPath" />
-          </transition>
+          <!-- key 取完整路由：确保菜单切换/同组件参数变化时重建页面实例，不残留上一页 -->
+          <!-- 不使用 transition 包裹：scoped 样式无法命中过渡类会导致 transitionend 永不触发、leave 卡死 -->
+          <component :is="Component" :key="viewRoute.fullPath" />
         </router-view>
       </main>
     </div>
@@ -58,19 +57,4 @@ onMounted(() => {
   background-color: var(--color-neutral-50);
 }
 
-/* 路由切换过渡动画 */
-.fade-transform-enter-active,
-.fade-transform-leave-active {
-  transition: all 0.2s ease;
-}
-
-.fade-transform-enter-from {
-  opacity: 0;
-  transform: translateX(-10px);
-}
-
-.fade-transform-leave-to {
-  opacity: 0;
-  transform: translateX(10px);
-}
 </style>
