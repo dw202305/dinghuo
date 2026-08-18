@@ -39,7 +39,7 @@ Route::post('v1/auth/login', '\app\api\controller\AuthController@login');
 Route::post('v1/auth/wechat-login', '\app\api\controller\AuthController@wechatLogin');
 
 // 后台管理端公开认证端点（登录前无 Token，必须置于 admin_auth 鉴权组之外）
-Route::post('v1/admin/auth/login', 'admin/AdminAuthController@login');
+Route::post('v1/admin/auth/login', '\app\api\controller\admin\AdminAuthController@login');
 
 // ============================================================
 // 二、门店端需认证接口 — 新版 RESTful 路由
@@ -375,7 +375,7 @@ Route::group('store', function () {
 // 旧版后台管理端公开认证端点（登录前无 Token，必须置于 admin_auth 鉴权组之外）
 Route::group('admin', function () {
 
-    Route::post('auth/login', 'admin/AdminAuthController@login');
+    Route::post('auth/login', '\app\api\controller\admin\AdminAuthController@login');
 
 })->prefix('v1/admin');
 
