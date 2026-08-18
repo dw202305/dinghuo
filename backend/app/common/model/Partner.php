@@ -73,7 +73,7 @@ class Partner extends BaseModel
     public function balanceAccount(): \think\model\relation\HasOne
     {
         return $this->hasOne(CustomerBalanceAccount::class, 'customer_id', 'id')
-            ->where('customer_type', 'partner');
+            ->where('customer_type', \app\common\enum\CustomerType::PARTNER->value);
     }
 
     /**

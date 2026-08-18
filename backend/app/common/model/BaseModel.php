@@ -11,8 +11,11 @@ use think\Model;
  */
 class BaseModel extends Model
 {
-    // 开启自动时间戳
+    // 开启自动时间戳（库表统一使用 created_at / updated_at，
+    // 而非 ThinkPHP 默认的 create_time / update_time）
     protected $autoWriteTimestamp = 'datetime';
+    protected $createTime = 'created_at';
+    protected $updateTime = 'updated_at';
 
     // 软删除
     protected $deleteTime = 'deleted_at';

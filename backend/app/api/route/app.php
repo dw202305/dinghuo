@@ -100,7 +100,8 @@ Route::group('v1', function () {
     Route::get('invoices/:id', '\app\api\controller\InvoiceController@detail');
 
     // ---- 2.9 储值账户与余额（新增，规范 §4.9 & §14.5）----
-    // 注：BalanceAccountController 尚未创建，路由预先注册
+    // 注：BalanceAccountController 已实现（recharge/pay/transactions/detail
+    // 均委托 BalanceAccountService，见 app/api/controller/BalanceAccountController.php）
     Route::post('balance-accounts/:id/recharge', '\app\api\controller\BalanceAccountController@recharge');
     Route::post('balance-accounts/:id/pay', '\app\api\controller\BalanceAccountController@pay');
     Route::get('balance-accounts/:id/transactions', '\app\api\controller\BalanceAccountController@transactions');
