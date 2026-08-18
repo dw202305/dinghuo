@@ -12,8 +12,7 @@ namespace app\common\model;
  * @property string|null $phone 手机号
  * @property string|null $email 邮箱
  * @property string|null $avatar 头像URL
- * @property int $is_super_admin 是否超级管理员：1是 0否
- * @property int $role_id 角色ID
+ * @property int $role_id 角色ID（role_id=1 为超级管理员，见 admin_seed.sql）
  * @property int $status 状态：1正常 0停用
  * @property string|null $last_login_at 最近登录时间
  * @property string|null $last_login_ip 最近登录IP

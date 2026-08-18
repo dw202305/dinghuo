@@ -9,7 +9,7 @@ use app\common\model\AdminPermission;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use think\Request;
-use Response;
+use think\Response;
 use think\facade\Cache;
 
 /**
@@ -17,7 +17,8 @@ use think\facade\Cache;
  * 基于 lj_admin 表 + RBAC 权限体系
  *
  * 权限获取策略（对齐架构师方案）：
- * 1. is_super_admin=1 → 硬编码跳过权限检查，直接放行
+ * 1. 角色为超级管理员（lj_admin.role_id=1，对应 lj_admin_role.role_code=super_admin）
+ *    → 硬编码跳过权限检查，直接放行
  * 2. 普通管理员 → 优先读 Redis 缓存（key=rbac:admin:{admin_id}:permissions，TTL 2h）
  * 3. 缓存未命中 → 查 DB 并写入缓存
  * 4. 权限变更时主动清除对应管理员的缓存 Key
@@ -32,6 +33,8 @@ class AdminAuthMiddleware
     private const CACHE_SUFFIX = ':permissions';
     /** 缓存 TTL（秒）：2 小时 */
     private const CACHE_TTL = 7200;
+    /** 超级管理员角色 ID（admin_seed.sql 约定：role_id=1 / role_code=super_admin） */
+    private const SUPER_ADMIN_ROLE_ID = 1;
 
     /**
      * 处理请求
@@ -80,7 +83,8 @@ class AdminAuthMiddleware
             $request->adminInfo = $admin;
 
             // 权限加载：超管跳过 → Redis 缓存 → DB 回源
-            if ((int) $admin->is_super_admin === 1) {
+            // 注：lj_admin 表无 is_super_admin 列，超管由角色表约定（role_id=1）标识
+            if ((int) $admin->role_id === self::SUPER_ADMIN_ROLE_ID) {
                 // 超管：硬编码跳过权限检查，标记为全权限
                 $request->adminPermissions  = ['*'];
                 $request->isSuperAdmin      = true;

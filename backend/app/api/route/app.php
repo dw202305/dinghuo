@@ -33,15 +33,20 @@ Route::get('v1/kit-info', '\app\api\controller\ProductController@kitInfo');
 Route::post('v1/payment-callbacks/wechat', '\app\api\controller\PaymentController@wechatNotify');
 Route::post('v1/payment-callbacks/alipay', '\app\api\controller\PaymentController@alipayNotify');
 
+// 门店端公开认证端点（登录前无 Token，必须置于 auth 鉴权组之外）
+Route::post('v1/auth/send-code', '\app\api\controller\AuthController@sendCode');
+Route::post('v1/auth/login', '\app\api\controller\AuthController@login');
+Route::post('v1/auth/wechat-login', '\app\api\controller\AuthController@wechatLogin');
+
+// 后台管理端公开认证端点（登录前无 Token，必须置于 admin_auth 鉴权组之外）
+Route::post('v1/admin/auth/login', 'admin/AdminAuthController@login');
+
 // ============================================================
 // 二、门店端需认证接口 — 新版 RESTful 路由
 // ============================================================
 Route::group('v1', function () {
 
-    // ---- 2.1 认证模块 ----
-    Route::post('auth/send-code', '\app\api\controller\AuthController@sendCode');
-    Route::post('auth/login', '\app\api\controller\AuthController@login');
-    Route::post('auth/wechat-login', '\app\api\controller\AuthController@wechatLogin');
+    // ---- 2.1 认证模块（公开端点 send-code/login/wechat-login 已移出本鉴权组，见第一节）----
     Route::post('auth/logout', '\app\api\controller\AuthController@logout');
     Route::get('auth/profile', '\app\api\controller\AuthController@profile');
     Route::get('auth/me', '\app\api\controller\AuthController@me');
@@ -132,8 +137,7 @@ Route::group('v1', function () {
 // ============================================================
 Route::group('v1/admin', function () {
 
-    // ---- 3.1 认证模块 ----
-    Route::post('auth/login', 'admin/AdminAuthController@login');
+    // ---- 3.1 认证模块（公开端点 login 已移出本鉴权组，见第一节）----
     Route::post('auth/logout', 'admin/AdminAuthController@logout');
     Route::get('auth/profile', 'admin/AdminAuthController@profile');
     Route::put('auth/password', 'admin/AdminAuthController@changePassword');
@@ -276,11 +280,18 @@ Route::group('store', function () {
 })->prefix('v1/store');
 
 // @deprecated 请使用新版认证路由 /api/v1/auth/*
+// 旧版门店端公开认证端点（登录前无 Token，必须置于 auth 鉴权组之外）
 Route::group('store', function () {
 
     Route::post('auth/send-code', '\app\api\controller\AuthController@sendCode');
     Route::post('auth/login', '\app\api\controller\AuthController@login');
     Route::post('auth/wechat-login', '\app\api\controller\AuthController@wechatLogin');
+
+})->prefix('v1/store');
+
+// @deprecated 请使用新版认证路由 /api/v1/auth/*
+Route::group('store', function () {
+
     Route::post('auth/logout', '\app\api\controller\AuthController@logout');
     Route::get('auth/profile', '\app\api\controller\AuthController@profile');
     Route::get('auth/me', '\app\api\controller\AuthController@me');
@@ -361,9 +372,16 @@ Route::group('store', function () {
 // 五、旧版后台管理端路由（deprecated — 兼容过渡期）
 // ============================================================
 // @deprecated 请使用新版 /api/v1/admin/stores、/api/v1/admin/orders 等 RESTful 路由
+// 旧版后台管理端公开认证端点（登录前无 Token，必须置于 admin_auth 鉴权组之外）
 Route::group('admin', function () {
 
     Route::post('auth/login', 'admin/AdminAuthController@login');
+
+})->prefix('v1/admin');
+
+// @deprecated 请使用新版 /api/v1/admin/stores、/api/v1/admin/orders 等 RESTful 路由
+Route::group('admin', function () {
+
     Route::post('auth/logout', 'admin/AdminAuthController@logout');
     Route::get('auth/profile', 'admin/AdminAuthController@profile');
     Route::put('auth/password', 'admin/AdminAuthController@changePassword');

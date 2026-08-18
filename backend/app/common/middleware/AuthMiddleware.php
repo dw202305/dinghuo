@@ -7,7 +7,7 @@ use app\common\ApiResponse;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use think\Request;
-use Response;
+use think\Response;
 use think\facade\Cache;
 
 /**
