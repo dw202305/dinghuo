@@ -13,6 +13,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./nginx/ssl:/etc/nginx/ssl
       - ../backend/public:/var/www/html/public
       - ../frontend/store/dist:/var/www/html/store
