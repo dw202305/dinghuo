@@ -1,9 +1,11 @@
 # 世尚门店订货系统 - 数据库设计文档
 
-> 版本：v1.2  
-> 更新日期：2026-08-17  
+> 版本：v1.3  
+> 更新日期：2026-08-18  
 > 架构师：架构师 Agent  
 > 依赖：世尚门店订货系统 PRD v3.2、开发规范 v1
+>
+> v1.3 变更（2026-08-18 全量修复批次2）：`lj_order` 新增 `audit_type`；新增 `lj_kit` / `lj_sequence` / `lj_order_status_history` 三张表（共 31 张）；`lj_payment.transaction_id` 改唯一索引；`lj_inventory_log` 新增 `idempotent_key` 与唯一索引。
 
 ---
 
@@ -372,6 +374,7 @@ CREATE TABLE `lj_order` (
   `paid_amount_cent` BIGINT NOT NULL DEFAULT 0 COMMENT '实付金额（分）',
   `payment_status` TINYINT NOT NULL DEFAULT 0 COMMENT '支付状态：0未支付 1部分支付 2已支付',
   `audit_status` TINYINT NOT NULL DEFAULT 0 COMMENT '审核状态：0未审核 1审核通过 2需确认 3待补款 4无法生产',
+  `audit_type` VARCHAR(20) NOT NULL DEFAULT 'post_audit' COMMENT '审核类型：post_audit先付后审 pre_audit先审后付',
   `expected_delivery_date` DATE DEFAULT NULL COMMENT '期望交期',
   `invoice_required` TINYINT NOT NULL DEFAULT 0 COMMENT '是否需要发票：0否 1是',
   `remark` TEXT COMMENT '整单备注',
@@ -494,8 +497,10 @@ CREATE TABLE `lj_inventory_log` (
   `operator_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '操作人ID',
   `operator_name` VARCHAR(50) DEFAULT NULL COMMENT '操作人姓名',
   `reason` VARCHAR(500) DEFAULT NULL COMMENT '原因',
+  `idempotent_key` VARCHAR(128) DEFAULT NULL COMMENT '幂等键（业务确定化，防重复流水）',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_inventory_log_idempotent` (`idempotent_key`),
   KEY `idx_log_store_id` (`store_id`),
   KEY `idx_log_inventory_id` (`inventory_id`),
   KEY `idx_log_order_id` (`order_id`),
@@ -667,7 +672,7 @@ CREATE TABLE `lj_payment` (
   UNIQUE KEY `uk_payment_payment_no` (`payment_no`),
   UNIQUE KEY `uk_payment_idempotent` (`idempotent_key`),
   KEY `idx_payment_order_id` (`order_id`),
-  KEY `idx_payment_transaction_id` (`transaction_id`),
+  UNIQUE KEY `uk_payment_transaction_id` (`transaction_id`),
   KEY `idx_payment_status` (`pay_status`),
   KEY `idx_payment_balance_txn` (`balance_transaction_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付记录表';
@@ -876,6 +881,64 @@ CREATE TABLE `lj_invoice_request` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='发票申请表';
 ```
 
+> **字段约定（v1.3 批次1）**：`lj_payment.transaction_id` 仅存第三方支付流水号（唯一索引防重复入账）；交易主体信息一律写 `transaction_subject_type` / `transaction_subject_id`。回调验签失败或金额不一致一律阻断入账。
+
+### 2.25 套件主数据表 lj_kit（v1.3 新增）
+
+```sql
+CREATE TABLE `lj_kit` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `kit_sku` VARCHAR(32) NOT NULL COMMENT '套件SKU，如 KIT-STD-STORE',
+  `kit_name` VARCHAR(100) NOT NULL COMMENT '套件名称',
+  `customer_level` TINYINT NOT NULL COMMENT '适用客户等级：1认证合作门店 2城市合伙人',
+  `kit_price_cent` BIGINT NOT NULL COMMENT '等级套件价（分），含税不含运费',
+  `effective_from` DATE DEFAULT NULL COMMENT '价格生效日期',
+  `effective_to` DATE DEFAULT NULL COMMENT '价格失效日期',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1启用 0停用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_kit_sku` (`kit_sku`),
+  KEY `idx_kit_customer_level` (`customer_level`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='套件主数据表（等级套件价，PRD 4.4）';
+```
+
+初始数据：`KIT-STD-STORE`（认证门店 76000 分）、`KIT-STD-PARTNER`（城市合伙人 66000 分）；套件计价按 `customer_level` 读本表。
+
+### 2.26 业务单号序列表 lj_sequence（v1.3 新增）
+
+```sql
+CREATE TABLE `lj_sequence` (
+  `seq_type` VARCHAR(32) NOT NULL COMMENT '序列类型，如 order/payment/recharge/balance_txn',
+  `seq_date` DATE NOT NULL COMMENT '序列日期',
+  `seq_value` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '当前序列值',
+  PRIMARY KEY (`seq_type`, `seq_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='业务单号序列表（Redis取号的MySQL降级通道）';
+```
+
+配合 `SequenceNo` 服务生成并发安全单号（Redis INCR 优先，MySQL 行锁降级）。
+
+### 2.27 订单状态历史表 lj_order_status_history（v1.3 新增）
+
+```sql
+CREATE TABLE `lj_order_status_history` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT UNSIGNED NOT NULL COMMENT '订单ID',
+  `order_no` VARCHAR(32) NOT NULL COMMENT '订单号',
+  `from_status` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '变更前状态（创建时为空串）',
+  `to_status` VARCHAR(32) NOT NULL COMMENT '变更后状态',
+  `action` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '触发动作',
+  `role` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '操作角色：store/admin/system等',
+  `reason` VARCHAR(255) DEFAULT NULL COMMENT '原因',
+  `operator_id` BIGINT DEFAULT NULL COMMENT '操作人ID',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单状态历史表';
+```
+
+由 `OrderStateService.writeStatusHistory` 在每次状态迁移时落表（含支付回调/取消/发货等副作用路径）。
+
 ---
 
 ## 三、枚举值说明
@@ -1028,7 +1091,7 @@ lj_operation_log (操作日志) ──── 各业务模块
 
 📋 交付物：数据库设计文档  
 📁 文件路径：`shishang-order-system/docs/database.md`  
-📝 变更说明：基于 PRD v3.2 + 开发规范 v1 完成 24 张核心表设计（v1.2 新增储值与资金账户体系）  
+📝 变更说明：基于 PRD v3.2 + 开发规范 v1 完成 31 张表设计（v1.2 新增储值与资金账户体系；v1.3 新增 lj_kit/lj_sequence/lj_order_status_history、lj_order.audit_type）  
 🔗 依赖说明：PRD v3.2、开发规范 v1  
 ⚠️ 注意事项：
 1. 金额字段统一使用 `BIGINT` 存"分"，字段名后缀 `_cent`，避免浮点精度问题
@@ -1040,3 +1103,7 @@ lj_operation_log (操作日志) ──── 各业务模块
 7. 面料编号、轨道 SKU、配件 SKU 等需要唯一约束
 8. 支付渠道使用 VARCHAR(20) 存储，支持灵活扩展
 9. 资金账户使用乐观锁（version 字段）防止并发问题
+
+---
+
+> ✅ 本文档与 `deploy/mysql/init.sql` v1.3 对齐，2026-08-18。
