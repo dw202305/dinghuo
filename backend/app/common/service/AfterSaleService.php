@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace app\common\service;
 
+use app\common\enum\CustomerType;
 use think\exception\ValidateException;
 use think\facade\Db;
 use think\facade\Log;
@@ -22,9 +23,10 @@ class AfterSaleService extends BaseService
      */
     public function createAfterSale(int $storeId, int $accountId, array $data): array
     {
-        // 校验订单归属
+        // 校验订单归属（transaction_type=1 门店 / transaction_id=门店ID）
         $order = Db::name('order')
             ->where('id', $data['order_id'])
+            ->where('transaction_type', CustomerType::STORE->value)
             ->where('transaction_id', $storeId)
             ->find();
 
@@ -40,6 +42,7 @@ class AfterSaleService extends BaseService
                 'after_sale_no'     => $afterSaleNo,
                 'store_id'          => $storeId,
                 'order_id'          => $data['order_id'],
+                'order_no'          => $order['order_no'] ?? '',
                 'item_id'           => $data['item_id'] ?? null,
                 'problem_type'      => $data['problem_type'],
                 'problem_desc'      => $data['problem_desc'],
@@ -225,9 +228,9 @@ class AfterSaleService extends BaseService
             'diagnosis'     => $data['diagnosis'] ?? null,
             'responsibility' => $data['responsibility'] ?? null,
             'solution'      => $data['solution'] ?? null,
-            'accessory_cost' => $data['accessory_cost'] ?? 0,
-            'labor_cost'    => $data['labor_cost'] ?? 0,
-            'logistics_cost' => $data['logistics_cost'] ?? 0,
+            'accessory_cost_cent' => (int) ($data['accessory_cost'] ?? 0),
+            'labor_cost_cent'     => (int) ($data['labor_cost'] ?? 0),
+            'logistics_cost_cent' => (int) ($data['logistics_cost'] ?? 0),
             'handler_id'    => $adminId,
             'handler_name'  => $adminName,
             'handled_at'    => date('Y-m-d H:i:s'),
