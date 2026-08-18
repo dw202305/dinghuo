@@ -34,6 +34,8 @@ class ErrorCode
     public const TOKEN_EXPIRED = 2002;
     /** Token 无效（签名错误、payload 不合法） */
     public const TOKEN_INVALID = 2003;
+    /** 微信未绑定门店账号（需联系总部绑定，批次3新增） */
+    public const WECHAT_NOT_BOUND = 2004;
 
     // ── 3xxx: 权限和数据访问 ──────────────────────────
     /** 无权限（角色不足 / 数据越权） */
@@ -51,6 +53,8 @@ class ErrorCode
     public const ILLEGAL_STATUS_TRANSITION = 4003;
     /** 订单已进入生产，不可取消/修改（PRD §11.3） */
     public const ORDER_IN_PRODUCTION = 4004;
+    /** 请求过于频繁（短信验证码 60 秒防刷等限流场景，批次5新增；HTTP 映射 429） */
+    public const RATE_LIMITED = 4029;
 
     // 41xx: 支付 & 资金
     /** 支付回调已处理（幂等拦截，规范 §12.2） */
@@ -100,6 +104,7 @@ class ErrorCode
         self::UNAUTHENTICATED             => 401,
         self::TOKEN_EXPIRED               => 401,
         self::TOKEN_INVALID               => 401,
+        self::WECHAT_NOT_BOUND            => 401,
 
         // 3xxx 权限 → 403/404
         self::FORBIDDEN                   => 403,
@@ -109,6 +114,9 @@ class ErrorCode
         self::INVENTORY_INSUFFICIENT      => 409,
         self::ILLEGAL_STATUS_TRANSITION   => 409,
         self::ORDER_IN_PRODUCTION         => 409,
+
+        // 40xx 限流 → 429（规范 §14.2）
+        self::RATE_LIMITED                => 429,
 
         // 400x 价格 → 422
         self::PRICE_EXPIRED               => 422,

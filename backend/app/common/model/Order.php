@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace app\common\model;
 
 use app\common\enum\OrderStatus;
+use app\common\support\SequenceNo;
 
 /**
  * 订单模型
@@ -14,21 +15,32 @@ use app\common\enum\OrderStatus;
  * @property string $order_no 订单号
  * @property int $transaction_type 交易主体类型（1=门店, 2=合伙人）
  * @property int $transaction_id 交易主体ID
- * @property int $service_store_id 实际服务门店ID
- * @property int $partner_id_snapshot 城市合伙人快照ID
- * @property int $sales_id_snapshot 成交销售快照ID
- * @property int $current_service_sales_id 当前服务销售ID
- * @property int $collaborating_sales_id 协同销售ID
+ * @property int|null $service_store_id 实际服务门店ID
+ * @property int|null $partner_snapshot_id 城市合伙人归属快照ID
+ * @property int|null $primary_sales_snapshot_id 公司主归属销售快照ID
+ * @property int|null $current_service_sales_id 当前服务销售ID
+ * @property int|null $secondary_sales_snapshot_id 协同销售快照ID
+ * @property string|null $crm_customer_snapshot_id CRM客户ID快照
+ * @property string|null $crm_opportunity_id CRM商机ID
+ * @property int $created_by 创建账号ID
  * @property int $order_status 订单状态（OrderStatus 枚举值）
- * @property int $subtotal_amount_cent 商品小计（分）
+ * @property int $item_count 窗帘副数
+ * @property int $track_amount_cent 轨道费用合计（分）
+ * @property string $fabric_area_total 面料总面积（平方米）
+ * @property int $fabric_amount_cent 面料费用合计（分）
+ * @property int $inventory_used_count 库存套件使用数量
+ * @property int $new_purchase_count 新购套件数量
+ * @property int $new_purchase_amount_cent 新购套件费用（分）
+ * @property int $accessory_amount_cent 选装配件费用（分）
+ * @property string $shipping_method 运费方式
+ * @property int $nonstandard_amount_cent 非标费用（分）
  * @property int $discount_amount_cent 优惠金额（分）
- * @property int $payable_amount_cent 应付金额（分）
- * @property int $paid_amount_cent 已付金额（分）
- * @property int $refund_amount_cent 退款金额（分）
- * @property int $price_version_id 价格版本ID
- * @property string $idempotent_key 幂等键
+ * @property int $total_amount_cent 应付总额（分）
+ * @property int $paid_amount_cent 实付金额（分）
+ * @property int $payment_status 支付状态：0未支付 1部分支付 2已支付
  * @property string|null $price_locked_at 价格锁定时间
  * @property string|null $price_locked_until 价格锁定截止时间
+ * @property string|null $paid_at 支付时间
  * @property string $audit_type 审核类型：post_audit|pre_audit
  * @property int $audit_status 审核状态：0未审核 1通过 2需确认 3待补款 4无法生产
  */
@@ -64,12 +76,11 @@ class Order extends BaseModel
     }
 
     /**
-     * 关联交易门店
+     * 关联交易门店（仅门店主体订单有效；lj_store 无 transaction_type 列）
      */
     public function store(): \think\model\relation\BelongsTo
     {
-        return $this->belongsTo(Store::class, 'transaction_id', 'id')
-            ->where('transaction_type', 1);
+        return $this->belongsTo(Store::class, 'transaction_id', 'id');
     }
 
     /**
@@ -90,7 +101,10 @@ class Order extends BaseModel
 
     /**
      * 生成订单号
-     * 格式：SS-YYYYMMDD-{storeNo}-{sequence}
+     * 格式：SS-YYYYMMDD-{storeNo}-{sequence}（序号位宽保持4位不变）
+     *
+     * 批次2a：取号机制改为 SequenceNo（Redis INCR + MySQL 降级），
+     * 替换原"like 前缀查最大值+1"实现（并发下会重号）。
      *
      * @param string $storeNo 门店编号
      * @return string
@@ -100,16 +114,7 @@ class Order extends BaseModel
         $date = date('Ymd');
         $prefix = "SS-{$date}-{$storeNo}";
 
-        $lastOrder = self::where('order_no', 'like', "{$prefix}-%")
-            ->order('id', 'desc')
-            ->value('order_no');
-
-        if ($lastOrder) {
-            $lastSeq = (int) substr($lastOrder, -4);
-            $seq = $lastSeq + 1;
-        } else {
-            $seq = 1;
-        }
+        $seq = SequenceNo::next('order');
 
         return $prefix . '-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }

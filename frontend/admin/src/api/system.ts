@@ -5,7 +5,7 @@
 
 import { get, post, del } from "./index"
 import type { PaginatedData } from "@/types/api"
-import type { AdminInfo, AdminSaveParams, RoleInfo, RoleSaveParams, PermissionNode, PermissionNodeWithLabel, OperationLog } from "@/types/admin"
+import type { AdminInfo, AdminSaveParams, RoleInfo, RoleSaveParams, PermissionNode, OperationLog } from "@/types/admin"
 
 /**
  * 获取管理员列表

@@ -1,7 +1,6 @@
 import type {
   OrderStatus,
   PaymentStatus,
-  AuditStatus,
   TechnicalStatus,
   ProductionStatus,
   QcStatus,
@@ -153,6 +152,8 @@ export interface OrderListParams {
   store_id?: number
   page?: number
   page_size?: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /**

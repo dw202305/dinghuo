@@ -64,9 +64,11 @@
 |----|-----|
 | 库名 | `shishang_order` |
 | 用户 | `shishang` |
-| 密码 | `Shishang@2026!`（注意结尾有感叹号） |
-| 表前缀 | `lj_`，共 28 张表 |
-| 访问 | `docker exec ss-mysql mysql -ushishang -p'Shishang@2026!' shishang_order` |
+| MySQL 密码 | `SsMysql@2026xK9mQp4v`（2026-08-18 批次0已轮换，同步于 `backend/.env`，勿明文外传） |
+| Redis 密码 | `Redis@Ss2026Tp8rLm2x`（2026-08-18 批次0已轮换） |
+| JWT 密钥 | 已轮换（批次0），以 `backend/.env` 为准 |
+| 表前缀 | `lj_`，共 31 张表（init.sql v1.3：新增 lj_kit / lj_sequence / lj_order_status_history，lj_order 增 audit_type） |
+| 访问 | `docker exec ss-mysql mysql -ushishang -p'SsMysql@2026xK9mQp4v' shishang_order` |
 
 ### 容器清单
 | 容器 | 镜像 | 端口 |
@@ -114,17 +116,57 @@ shishang-order-system/
 - ✅ 前端管理端 + 商城端已构建并部署
 - ✅ 域名切换 shengshikunyuan.com + HTTPS 证书
 - ✅ 数据库唯一约束迁移已执行（lj_payment.transaction_id、lj_inventory_log.idempotent_key）
-- ✅ 全部变更已推送 GitHub
+- ✅ **2026-08-18 全量审计修复（批次 0~7，见下方小节）**，代码已推分支 `fix/full-audit-repair`（0ba3191 / 1eb8ed2 / b93ab39）
+- ✅ 四类核心 Feature 测试 + 回归用例全绿（114 tests / 927 assertions）
+
+**本次全量修复简表：**
+| 批次 | 内容摘要 |
+|------|------|
+| 0 | 生产库勘测（=deploy v1.2 结构、空库）、全量备份、凭证轮换（MySQL/Redis/JWT）、composer.lock 落地 |
+| 1 | 支付回调验签骨架（NotifyVerifier 接口 + Wechat/Alipay/Mock，PAY_VERIFY_STRICT 开关）、金额不一致阻断入账、transaction_id 仅存第三方流水（主体写 transaction_subject_type/id）、余额支付同事务 + 状态机、回调统一走 OrderStateService |
+| 2 | deploy/init.sql 升 v1.3（31 表）、docker/init.sql 同步、9+2 枚举层、Money ROUND_HALF_UP、SequenceNo 并发安全单号；代码 7 张表字段全对齐 deploy；套件计价按 customer_level 读 lj_kit（760/660 元）；lj_track 计价修复（track_type TINYINT + price_per_meter_cent）；OrderStateService.writeStatusHistory 落表 |
+| 3 | BalanceAccountController 新建、OrderController 补 10 方法、AuthController 补 sendCode/wechatLogin/logout/profile（短信/微信登录适配层骨架 + Mock） |
+| 4 | 幂等键业务确定化 + 先插捕 1062 回查、订单级 submit 防重、网络调用移出事务、状态机副作用实接（提交锁库存/取消释放/支付核销）、RedisLock 安全化 |
+| 5 | ApiResponse HTTP 状态码映射（1xxx→400 / 2xxx→401 / 3xxx→403\|404 / 4xxx→409\|422 / 4029→429 / 5xxx→500）、CORS 白名单（[CORS] ALLOWED_ORIGINS）、非标两级判断（标准范围 90-350/50-600 标记不拦截，硬限 30-500/20-800 拒绝）、store 去 any、两端 lockfile、最小 ESLint、错误码 RATE_LIMITED=4029 / WECHAT_NOT_BOUND=2004 |
+| 6 | 四类核心 Feature 测试 + 回归用例（114 tests / 927 assertions 全绿） |
+| 评审修复 | 24 项：PAYING 死锁补偿转换（payment_processing:pending_payment / cancelled）、发货聚合、互斥校验、行锁、部分退款、越权 transaction_type 拦截、order_id 参数回退等 |
 
 ### 待办 / 已知问题
 | 事项 | 说明 | 优先级 |
 |------|------|--------|
-| 管理端 39 个 vue-tsc 类型错误 | 构建当前跳过类型检查（build 命令为 `vite build`，原命令备份在 package.json.bak）；不影响运行 | 中 |
-| 微信支付 / 微信登录对接 | overtrue/wechat 已引入，商户号就绪但具体对接未实现 | 高 |
-| 通知系统 | NotificationService 为 stub（仅记日志），PRD 要求的 12 个通知节点未实现 | 中 |
+| 微信支付 / 微信登录真实凭证联调 | overtrue/wechat 已引入、商户号就绪；WechatPayNotifyVerifier / WechatMiniProgramLoginAdapter 现为骨架/Mock，待真实凭证联调 | 高 |
+| 短信真实下发 | AliyunSmsSender 为 TODO 骨架，当前验证码走 Mock | 高 |
+| Workerman 通知载体 | NotificationService 仍为 stub（仅记日志），PRD 要求的 12 个通知节点待接 Workerman 推送 | 中 |
+| deprecated 旧路由移除 | 路由中仍残留 `order/submit`、`inventory/fabric-stock` 等旧式重复路由，待清理移除 | 中 |
+| 其余测试场景 | Feature 测试已覆盖四类核心场景，售后/发票/储值审核等边缘场景待补充 | 中 |
+| 非标硬限取值待确认 | 现行硬限宽 30-500cm / 高 20-800cm 拒绝，具体取值待总部工艺确认 | 中 |
+| fabricStock 数据源 | 接口已返回数组结构，实际库存数据源待接入 | 中 |
 | 统计报表 | PRD 首期要求，未实现 | 中 |
 | OSS 图片上传 | 未实现 | 中 |
+| 管理端 39 个 vue-tsc 类型错误 | 构建当前跳过类型检查（原命令备份在 package.json.bak）；不影响运行 | 低 |
 | 服务器源码同步 | 服务器 /opt 代码与 git 仓库可能漂移，建议用 git pull 保持一致 | 低 |
+
+### 2026-08-18 全量修复概述
+
+共 8 批次（勘测备份 → 支付安全 → DDL 升级与计价对齐 → 控制器补齐 → 幂等与并发 → HTTP 契约 → 测试 → 评审修复），代码推于分支 `fix/full-audit-repair`。前端联调务必先读 `docs/api-patch-20260818.md`。
+
+**关键契约变化：**
+1. **HTTP 状态码不再恒 200**：业务错误码映射真实状态码（1xxx→400 / 2xxx→401 / 3xxx→403\|404 / 4xxx→409\|422 / 4029→429 / 5xxx→500），前端拦截器需按响应体 `code` 判断，不能再依赖 status=200。
+2. **payment_channel 字符串化**：支付渠道统一为字符串 `balance` / `wechat` / `alipay`（此前部分接口返回 int）。
+3. **submit 需 `confirmed=1`**：订单提交须携带价格确认标记；预审场景走不带 `confirmed` 的 submit，或新端点 `POST v1/orders/:order_no/pre-audit/request`。
+4. **订单接口双参数**：订单相关接口支持 `order_id` / `order_no` 双参数（带回退），新增错误码 `2004`（微信未绑定）与 `4029`（限流）。
+
+**DDL 变化**（`deploy/mysql/init.sql` v1.3，31 张表，`docker/mysql/init.sql` 已同步）：
+- 新增 `lj_kit`（等级套件价主数据：认证门店 760 元/套、城市合伙人 660 元/套）
+- 新增 `lj_sequence`（业务单号序列，Redis 取号的 MySQL 降级通道）
+- 新增 `lj_order_status_history`（订单状态历史，OrderStateService.writeStatusHistory 落表）
+- `lj_order` 增 `audit_type`（post_audit 先付后审 / pre_audit 先审后付）
+- `lj_payment.transaction_id` 唯一索引，仅存第三方流水号；交易主体写 `transaction_subject_type/id`
+
+**构建命令变化**：管理端改用 pnpm（lockfile 已入库）：
+```bash
+cd frontend/admin && corepack enable && pnpm install --frozen-lockfile && pnpm build
+```
 
 ---
 
@@ -156,8 +198,9 @@ composer config -g repo.packagist composer https://mirrors.cloud.tencent.com/com
 
 ### 前端构建
 ```bash
-# 管理端（当前 build 跳过 vue-tsc）
-cd /opt/shishang-order-system/frontend/admin && npm run build
+# 管理端（2026-08-18 起改用 pnpm，lockfile 已入库；当前 build 仍跳过 vue-tsc）
+cd /opt/shishang-order-system/frontend/admin
+corepack enable && pnpm install --frozen-lockfile && pnpm build
 # 商城端 H5（产物在 dist/build/h5，需移到 dist/ 顶层匹配 nginx 挂载）
 cd /opt/shishang-order-system/frontend/store && npm run build:h5
 # npm 用国内镜像

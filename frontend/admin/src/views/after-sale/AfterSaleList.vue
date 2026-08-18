@@ -111,7 +111,7 @@
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleViewDetail(row)">
+            <el-button type="primary" link size="small" @click="handleViewDetail(row as AfterSaleListItem)">
               详情
             </el-button>
             <el-button
@@ -119,7 +119,7 @@
               type="warning"
               link
               size="small"
-              @click="handleAssign(row)"
+              @click="handleAssign(row as AfterSaleListItem)"
             >
               分配
             </el-button>
@@ -128,7 +128,7 @@
               type="success"
               link
               size="small"
-              @click="handleProcess(row)"
+              @click="handleProcess(row as AfterSaleListItem)"
             >
               处理
             </el-button>
@@ -352,6 +352,17 @@ function responsibilityLabel(type: number): string {
   return map[type] || "未知"
 }
 
+/** 售后列表查询参数 */
+interface AfterSaleQueryParams {
+  keyword?: string
+  status?: number
+  problem_type?: number
+  start_date?: string
+  end_date?: string
+  store_name?: string
+  [key: string]: unknown
+}
+
 const {
   loading,
   tableData,
@@ -361,8 +372,8 @@ const {
   handleReset,
   handlePageChange,
   handleSizeChange
-} = useTable({
-  fetchApi: getAfterSaleList,
+} = useTable<AfterSaleListItem, AfterSaleQueryParams>({
+  fetchApi: (params: AfterSaleQueryParams) => getAfterSaleList(params),
   defaultParams: {
     keyword: undefined,
     status: undefined,
@@ -375,11 +386,11 @@ const {
 /** 搜索时同步额外参数 */
 watch([dateRange, storeKeyword], () => {
   if (dateRange.value) {
-    (queryParams as Record<string, unknown>).start_date = dateRange.value[0]
-    (queryParams as Record<string, unknown>).end_date = dateRange.value[1]
+    ;(queryParams as Record<string, unknown>).start_date = dateRange.value[0]
+    ;(queryParams as Record<string, unknown>).end_date = dateRange.value[1]
   } else {
-    (queryParams as Record<string, unknown>).start_date = undefined
-    (queryParams as Record<string, unknown>).end_date = undefined
+    ;(queryParams as Record<string, unknown>).start_date = undefined
+    ;(queryParams as Record<string, unknown>).end_date = undefined
   }
   ;(queryParams as Record<string, unknown>).store_name = storeKeyword.value || undefined
 })

@@ -130,7 +130,7 @@ export function exportReconciliation(params: Record<string, unknown>) {
  * 获取资金对账汇总
  */
 export function getReconciliationSummary(params: ReconciliationParams): Promise<ReconciliationSummary> {
-  return get<ReconciliationSummary>("/admin/finance/reconciliation-summary", params as Record<string, unknown>)
+  return get<ReconciliationSummary>("/admin/finance/reconciliation-summary", params as unknown as Record<string, unknown>)
 }
 
 // 后端需补路由：后端旧版没有 /admin/finance/reconciliation-detail
@@ -138,7 +138,7 @@ export function getReconciliationSummary(params: ReconciliationParams): Promise<
  * 获取资金对账明细
  */
 export function getReconciliationDetail(params: ReconciliationDetailParams): Promise<ReconciliationDetailResult> {
-  return get<ReconciliationDetailResult>("/admin/finance/reconciliation-detail", params as Record<string, unknown>)
+  return get<ReconciliationDetailResult>("/admin/finance/reconciliation-detail", params as unknown as Record<string, unknown>)
 }
 
 /** ============================================
@@ -151,7 +151,7 @@ export function getReconciliationDetail(params: ReconciliationDetailParams): Pro
  * 对应后端路由: GET /api/v1/admin/finance/customer-accounts
  */
 export function getCustomerAccounts(params: AccountListParams): Promise<AccountListResult> {
-  return get<AccountListResult>("/admin/finance/customer-accounts", params as Record<string, unknown>)
+  return get<AccountListResult>("/admin/finance/customer-accounts", params as unknown as Record<string, unknown>)
 }
 
 /**
@@ -204,23 +204,23 @@ export function toggleAccountFreeze(accountId: number, freeze: boolean): Promise
  * 对应后端路由: GET /api/v1/admin/finance/recharge-audit/list
  */
 export function getRechargeAuditList(params: AuditListParams): Promise<AuditListResult> {
-  return get<AuditListResult>("/admin/finance/recharge-audit/list", params as Record<string, unknown>)
+  return get<AuditListResult>("/admin/finance/recharge-audit/list", params as unknown as Record<string, unknown>)
 }
 
 /**
  * 审核通过充值
  * 对应后端路由: POST /api/v1/admin/finance/recharge-audit/process
  */
-export function approveRecharge(rechargeId: number, remark?: string): Promise<void> {
-  return post<void>("/admin/finance/recharge-audit/process", { id: rechargeId, action: 1, remark })
+export function approveRecharge(rechargeNo: string, remark?: string): Promise<void> {
+  return post<void>("/admin/finance/recharge-audit/process", { id: rechargeNo, action: 1, remark })
 }
 
 /**
  * 审核拒绝充值
  * 对应后端路由: POST /api/v1/admin/finance/recharge-audit/process
  */
-export function rejectRecharge(rechargeId: number, reason: string): Promise<void> {
-  return post<void>("/admin/finance/recharge-audit/process", { id: rechargeId, action: 2, reason })
+export function rejectRecharge(rechargeNo: string, reason: string): Promise<void> {
+  return post<void>("/admin/finance/recharge-audit/process", { id: rechargeNo, action: 2, reason })
 }
 
 // 后端需补路由：后端旧版没有 /admin/finance/recharge-audit-history
@@ -236,15 +236,15 @@ export function getAuditHistory(rechargeNo: string): Promise<AuditHistoryItem[]>
  * 获取余额流水列表
  */
 export function getBalanceLogList(params: BalanceLogParams): Promise<BalanceLogResult> {
-  return get<BalanceLogResult>("/admin/finance/balance-log-list", params as Record<string, unknown>)
+  return get<BalanceLogResult>("/admin/finance/balance-log-list", params as unknown as Record<string, unknown>)
 }
 
 // 后端需补路由：后端旧版没有 /admin/finance/balance-reversal
 /**
  * 发起冲正（新建反向流水）
  */
-export function createReversal(transactionId: number): Promise<void> {
-  return post<void>("/admin/finance/balance-reversal", { transaction_id: transactionId })
+export function createReversal(params: ReversalParams): Promise<void> {
+  return post<void>("/admin/finance/balance-reversal", params)
 }
 
 // 后端需补路由：后端旧版没有 /admin/finance/offline-recharge

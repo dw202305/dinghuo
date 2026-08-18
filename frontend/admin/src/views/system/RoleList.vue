@@ -41,7 +41,7 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
-          <template #default="{ row }">
+          <template #default="{ row }: { row: RoleInfo }">
             <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
             <el-button type="success" link size="small" @click="openPermDialog(row)">分配权限</el-button>
             <el-button type="danger" link size="small" @click="handleDeleteRole(row)">删除</el-button>
@@ -326,9 +326,9 @@ async function openPermDialog(row: RoleInfo): Promise<void> {
  */
 function handleTreeCheck(
   _data: PermissionNode,
-  checkInfo: { checkedKeys: number[]; checkedNodes: PermissionNode[] }
+  checkInfo: { checkedKeys: (string | number)[]; checkedNodes: unknown[] }
 ): void {
-  checkedPermIds.value = checkInfo.checkedKeys
+  checkedPermIds.value = checkInfo.checkedKeys.map((key) => Number(key))
 }
 
 /** 全选 */

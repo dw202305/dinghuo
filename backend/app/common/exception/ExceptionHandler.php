@@ -127,7 +127,7 @@ class ExceptionHandler extends Handle
                     405
                 ),
                 429 => $this->buildJsonResponse(
-                    ErrorCode::SYSTEM_ERROR,
+                    ErrorCode::RATE_LIMITED,
                     '请求过于频繁，请稍后重试',
                     null,
                     $requestId,

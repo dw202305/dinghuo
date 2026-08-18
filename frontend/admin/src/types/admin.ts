@@ -123,7 +123,7 @@ export interface ReceiptRecord {
   payment_no: string
   order_no: string
   store_name: string
-  pay_channel: number
+  payment_channel: string
   pay_channel_text: string
   pay_amount: string
   receivable_amount: string

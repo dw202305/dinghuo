@@ -17,9 +17,9 @@
           clearable
           style="width: 140px"
         >
-          <el-option label="微信" :value="1" />
-          <el-option label="支付宝" :value="2" />
-          <el-option label="银行转账" :value="3" />
+          <el-option label="余额" value="balance" />
+          <el-option label="微信" value="wechat" />
+          <el-option label="支付宝" value="alipay" />
         </el-select>
       </el-form-item>
       <el-form-item label="收款状态">
@@ -76,11 +76,11 @@
         <el-table-column label="支付方式" width="110" align="center">
           <template #default="{ row }">
             <el-tag
-              :type="payChannelTag(row.pay_channel)"
+              :type="payChannelTag(row.payment_channel)"
               size="small"
               effect="light"
             >
-              {{ row.pay_channel_text || channelLabel(row.pay_channel) }}
+              {{ row.pay_channel_text || channelLabel(row.payment_channel) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -105,7 +105,7 @@
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleViewDetail(row)">
+            <el-button type="primary" link size="small" @click="handleViewDetail(row as ReceiptRecord)">
               详情
             </el-button>
             <el-button
@@ -113,7 +113,7 @@
               type="success"
               link
               size="small"
-              @click="handleMarkReceived(row)"
+              @click="handleMarkReceived(row as ReceiptRecord)"
             >
               标记已收
             </el-button>
@@ -144,11 +144,11 @@
         </el-descriptions-item>
         <el-descriptions-item label="支付方式">
           <el-tag
-            :type="payChannelTag(detailData?.pay_channel ?? 0)"
+            :type="payChannelTag(detailData?.payment_channel ?? '')"
             size="small"
             effect="light"
           >
-            {{ detailData?.pay_channel_text || channelLabel(detailData?.pay_channel ?? 0) }}
+            {{ detailData?.pay_channel_text || channelLabel(detailData?.payment_channel ?? '') }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="收款状态">
@@ -208,6 +208,16 @@ import SearchForm from "@/components/SearchForm.vue"
 import TablePagination from "@/components/TablePagination.vue"
 import StatusTag from "@/components/StatusTag.vue"
 
+/** 收款列表查询参数 */
+interface FinanceQueryParams {
+  keyword?: string
+  pay_channel?: string
+  pay_status?: number
+  start_date?: string
+  end_date?: string
+  [key: string]: unknown
+}
+
 /** 日期范围 */
 const dateRange = ref<[string, string] | null>(null)
 /** 导出loading */
@@ -221,20 +231,20 @@ const receiptStatusTypeMap: Record<string, "success" | "warning" | "danger" | "i
 }
 
 /**
- * 支付方式标签类型
+ * 支付方式标签类型（渠道值：balance/wechat/alipay 字符串）
  */
-function payChannelTag(channel: number): "success" | "warning" | "primary" | "info" {
-  if (channel === 1) return "success"
-  if (channel === 2) return "primary"
-  if (channel === 3) return "warning"
+function payChannelTag(channel: string): "success" | "warning" | "primary" | "info" {
+  if (channel === "wechat") return "success"
+  if (channel === "alipay") return "primary"
+  if (channel === "balance") return "warning"
   return "info"
 }
 
 /**
- * 支付方式文本
+ * 支付方式文本（渠道值：balance/wechat/alipay 字符串）
  */
-function channelLabel(channel: number): string {
-  const map: Record<number, string> = { 1: "微信", 2: "支付宝", 3: "银行转账" }
+function channelLabel(channel: string): string {
+  const map: Record<string, string> = { balance: "余额", wechat: "微信", alipay: "支付宝" }
   return map[channel] || "未知"
 }
 
@@ -255,8 +265,8 @@ const {
   handleReset,
   handlePageChange,
   handleSizeChange
-} = useTable({
-  fetchApi: getPaymentList,
+} = useTable<ReceiptRecord, FinanceQueryParams>({
+  fetchApi: (params: FinanceQueryParams) => getPaymentList(params),
   defaultParams: {
     keyword: undefined,
     pay_channel: undefined,
@@ -269,11 +279,11 @@ const {
 /** 搜索时同步日期参数 */
 watch(dateRange, () => {
   if (dateRange.value) {
-    (queryParams as Record<string, unknown>).start_date = dateRange.value[0]
-    (queryParams as Record<string, unknown>).end_date = dateRange.value[1]
+    ;(queryParams as Record<string, unknown>).start_date = dateRange.value[0]
+    ;(queryParams as Record<string, unknown>).end_date = dateRange.value[1]
   } else {
-    (queryParams as Record<string, unknown>).start_date = undefined
-    (queryParams as Record<string, unknown>).end_date = undefined
+    ;(queryParams as Record<string, unknown>).start_date = undefined
+    ;(queryParams as Record<string, unknown>).end_date = undefined
   }
 })
 

@@ -24,6 +24,8 @@ export interface AccountListParams {
   max_balance?: number
   page: number
   page_size: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /** 客户资金账户列表结果 */
@@ -70,6 +72,8 @@ export interface AuditListParams {
   end_date?: string
   page: number
   page_size: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /** 储值审核列表结果 */
@@ -113,6 +117,8 @@ export interface BalanceLogParams {
   end_date?: string
   page: number
   page_size: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /** 余额流水列表结果 */
@@ -133,6 +139,8 @@ export interface ReversalParams {
 export interface ReconciliationParams {
   period_type: 'day' | 'week' | 'month'
   date: string
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /** 对账汇总 */
@@ -156,6 +164,8 @@ export interface ReconciliationDetailParams {
   end_date: string
   page: number
   page_size: number
+  /** 允许附加动态查询字段 */
+  [key: string]: unknown
 }
 
 /** 对账明细 */

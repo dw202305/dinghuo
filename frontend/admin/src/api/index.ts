@@ -58,12 +58,15 @@ service.interceptors.response.use(
   },
   (error: unknown) => {
     if (axios.isAxiosError(error)) {
-      if (error.response?.status === 401) {
+      // 批次5：后端启用 HTTP 状态码映射（规范 §14.2），
+      // 非 2xx 响应体仍是统一 JSON 结构，优先展示后端业务 message
+      const body = error.response?.data as ApiResponse<unknown> | undefined
+      if (error.response?.status === 401 || body?.code === 2001 || body?.code === 2002 || body?.code === 2003) {
         clearAuth()
         router.push("/login")
         ElMessage.error("登录已过期，请重新登录")
       } else {
-        ElMessage.error(error.message || "网络异常")
+        ElMessage.error(body?.message || error.message || "网络异常")
       }
     }
     return Promise.reject(error)

@@ -5,13 +5,23 @@ namespace app\api\controller\admin;
 
 use app\api\controller\BaseController;
 use app\api\validate\AdminValidate;
+use app\common\enum\CustomerType;
+use app\common\enum\PayStatus;
+use app\common\enum\PaymentChannel;
+use app\common\enum\RechargeStatus;
+use app\common\service\BalanceAccountService;
 use app\common\service\InvoiceService;
+use app\common\support\Money;
 use think\exception\ValidateException;
 use think\facade\Db;
 
 /**
  * 后台财务管理控制器
- * 支付记录/退款
+ * 支付记录/退款/资金账户/储值审核/对账
+ *
+ * 批次2c：全部字段对齐 deploy/mysql/init.sql（lj_payment.payment_channel、
+ * pay_amount_cent/refund_amount_cent、账户 *_cent/account_status、
+ * 储值单 amount_cent/recharge_method/状态1-6）；金额一律整数分，禁 float。
  */
 class AdminFinanceController extends BaseController
 {
@@ -24,22 +34,26 @@ class AdminFinanceController extends BaseController
         [$page, $pageSize] = $this->getPageParams();
         $request = $this->app->request;
 
+        // deploy lj_payment 无 store_id：主体存 transaction_subject_type/id，
+        // 门店主体（1）关联门店表取名称
         $query = Db::name('payment')
             ->alias('p')
             ->leftJoin('order o', 'o.id = p.order_id')
-            ->leftJoin('store s', 's.id = p.store_id');
+            ->leftJoin('store s', 's.id = p.transaction_subject_id AND p.transaction_subject_type = ' . CustomerType::STORE->value);
 
         if ($keyword = $request->param('keyword', '')) {
             $query->where('p.payment_no|o.order_no|p.transaction_id', 'like', '%' . $keyword . '%');
         }
-        if ($payChannel = $request->param('pay_channel/d')) {
-            $query->where('p.pay_channel', $payChannel);
+        // 批次2c：渠道过滤改为 deploy payment_channel（balance/wechat/alipay）
+        if ($channel = $request->param('pay_channel', '')) {
+            $query->where('p.payment_channel', (string) $channel);
         }
         if ($payStatus = $request->param('pay_status/d')) {
             $query->where('p.pay_status', $payStatus);
         }
         if ($storeId = $request->param('store_id/d')) {
-            $query->where('p.store_id', $storeId);
+            $query->where('p.transaction_subject_type', CustomerType::STORE->value)
+                ->where('p.transaction_subject_id', $storeId);
         }
         if ($startDate = $request->param('start_date', '')) {
             $query->where('p.created_at', '>=', $startDate . ' 00:00:00');
@@ -51,21 +65,21 @@ class AdminFinanceController extends BaseController
         $total = $query->count();
         $list  = $query->field([
                 'p.id as payment_id', 'p.payment_no', 'o.order_no',
-                's.store_name', 'p.pay_channel', 'p.pay_method',
-                'p.pay_amount', 'p.transaction_id', 'p.pay_status',
-                'p.paid_at', 'p.refund_amount', 'p.refunded_at',
+                's.store_name', 'p.payment_channel', 'p.pay_method',
+                'p.pay_amount_cent', 'p.transaction_id', 'p.pay_status',
+                'p.paid_at', 'p.refund_amount_cent', 'p.refunded_at',
             ])
             ->order('p.id', 'desc')
             ->page($page, $pageSize)
             ->select()
             ->toArray();
 
-        $channelMap = [1 => '微信支付', 2 => '支付宝'];
-        $statusMap = [0 => '待支付', 1 => '支付成功', 2 => '支付失败', 3 => '已退款'];
+        $statusMap = PayStatus::options();
 
         foreach ($list as &$item) {
-            $item['pay_channel_text'] = $channelMap[$item['pay_channel']] ?? '';
-            $item['pay_status_text']  = $statusMap[$item['pay_status']] ?? '';
+            $channelEnum = PaymentChannel::tryFrom((string) ($item['payment_channel'] ?? ''));
+            $item['pay_channel_text'] = $channelEnum?->label() ?? '';
+            $item['pay_status_text']  = $statusMap[(int) $item['pay_status']] ?? '';
         }
 
         return $this->success(['list' => $list, 'total' => $total, 'page' => $page, 'page_size' => $pageSize]);
@@ -74,6 +88,10 @@ class AdminFinanceController extends BaseController
     /**
      * 退款处理
      * POST /api/v1/admin/finance/refund
+     *
+     * 批次2c：金额改整数分运算（入参元 → Money 转分，禁 float 累加）；
+     * 退款额累计到 deploy lj_payment.refund_amount_cent；
+     * deploy 无 refund_record 表，退款记录以支付单退款列 + 操作日志承载。
      */
     public function refund(): \think\Response
     {
@@ -84,38 +102,57 @@ class AdminFinanceController extends BaseController
         }
 
         $payment = Db::name('payment')->where('id', $data['payment_id'])->find();
-        if (!$payment || $payment['pay_status'] !== 1) {
+        if (!$payment || (int) $payment['pay_status'] !== PayStatus::SUCCESS->value) {
             return $this->error('支付记录状态不允许退款', 1006);
         }
 
-        $refundAmount = (float) $data['refund_amount'];
-        $maxRefundable = (float) $payment['pay_amount'] - (float) ($payment['refund_amount'] ?? 0);
+        // 元 → 分（字符串运算，禁 float）
+        $refundCent = Money::mulCent((string) $data['refund_amount'], 100);
+        if ($refundCent <= 0) {
+            return $this->paramError('退款金额必须大于0');
+        }
 
-        if ($refundAmount > $maxRefundable) {
+        $paidCent = (int) $payment['pay_amount_cent'];
+        $refundedCent = (int) ($payment['refund_amount_cent'] ?? 0);
+        if ($refundCent + $refundedCent > $paidCent) {
             return $this->error('退款金额超过可退金额', 1001);
         }
 
-        // TODO: 调用微信/支付宝退款接口
+        $channel = PaymentChannel::tryFrom((string) $payment['payment_channel']);
 
-        $refundId = Db::name('refund_record')->insertGetId([
-            'payment_id'    => $data['payment_id'],
-            'refund_amount' => $refundAmount,
-            'refund_reason' => $data['refund_reason'],
-            'kit_return'    => $data['kit_return'] ?? 0,
-            'refund_status' => 'processing',
-            'created_by'    => $this->getAccountId(),
-            'created_at'    => date('Y-m-d H:i:s'),
-        ]);
-
-        // 更新支付记录已退款金额
-        Db::name('payment')->where('id', $data['payment_id'])->update([
-            'refund_amount' => (float) $payment['refund_amount'] + $refundAmount,
-        ]);
+        try {
+            if ($channel === PaymentChannel::BALANCE) {
+                // 余额支付订单：退回原客户主体余额（事务内含流水与支付单状态更新）
+                $balanceService = new BalanceAccountService();
+                $balanceService->refundToBalance(
+                    (string) $payment['payment_no'],
+                    $refundCent,
+                    [
+                        'reason'      => (string) $data['refund_reason'],
+                        'operator_id' => $this->getAccountId(),
+                    ]
+                );
+            } else {
+                // TODO: 调用微信/支付宝退款接口（批次外）
+                Db::name('payment')->where('id', (int) $payment['id'])->update([
+                    'refund_amount_cent' => $refundedCent + $refundCent,
+                    'refunded_at'        => date('Y-m-d H:i:s'),
+                    'refund_reason'      => (string) $data['refund_reason'],
+                    // 全额退款置已退款态，部分退款保持支付成功
+                    'pay_status'         => ($refundedCent + $refundCent >= $paidCent)
+                        ? PayStatus::REFUNDED->value
+                        : PayStatus::SUCCESS->value,
+                ]);
+            }
+        } catch (ValidateException $e) {
+            return $this->error($e->getMessage(), 1006);
+        }
 
         return $this->success([
-            'refund_id'     => $refundId,
-            'refund_amount' => number_format($refundAmount, 2, '.', ''),
-            'refund_status' => 'processing',
+            'payment_id'       => (int) $payment['id'],
+            'refund_amount'    => number_format($refundCent / 100, 2, '.', ''),
+            'refund_amount_cent' => $refundCent,
+            'refund_status'    => 'processing',
         ]);
     }
 
@@ -178,6 +215,9 @@ class AdminFinanceController extends BaseController
     /**
      * 客户资金账户列表
      * GET /api/v1/admin/finance/customer-accounts
+     *
+     * 批次2c：账户主体为 customer_type + customer_id（1门店 2城市合伙人），
+     * 列名对齐 deploy（*_cent/account_status）。
      */
     public function customerAccounts(): \think\Response
     {
@@ -186,30 +226,34 @@ class AdminFinanceController extends BaseController
 
         $query = Db::name('customer_balance_account')
             ->alias('a')
-            ->leftJoin('store s', 's.id = a.store_id');
+            ->leftJoin('store s', 's.id = a.customer_id AND a.customer_type = ' . CustomerType::STORE->value)
+            ->leftJoin('partner pt', 'pt.id = a.customer_id AND a.customer_type = ' . CustomerType::PARTNER->value);
 
         if ($keyword = $request->param('keyword', '')) {
-            $query->where('s.store_name|s.store_no', 'like', '%' . $keyword . '%');
+            $query->where('s.store_name|s.store_no|pt.business_entity', 'like', '%' . $keyword . '%');
         }
         if ($status = $request->param('status/d')) {
-            $query->where('a.status', $status);
+            $query->where('a.account_status', $status);
         }
 
         $total = $query->count();
         $list = $query->field([
-                'a.id', 'a.store_id', 's.store_name', 's.store_no',
+                'a.id', 'a.customer_type', 'a.customer_id',
+                Db::raw('COALESCE(s.store_name, pt.business_entity) as customer_name'),
                 'a.available_balance_cent', 'a.frozen_balance_cent',
-                'a.total_recharge_cent', 'a.total_consume_cent',
-                'a.status', 'a.created_at',
+                'a.total_recharge_cent', 'a.total_consumed_cent',
+                'a.total_refund_cent', 'a.total_adjustment_cent',
+                'a.account_status', 'a.created_at',
             ])
             ->order('a.id', 'desc')
             ->page($page, $pageSize)
             ->select()
             ->toArray();
 
-        $statusMap = [0 => '已冻结', 1 => '正常'];
+        $statusMap = [1 => '正常', 2 => '已冻结', 3 => '已注销'];
         foreach ($list as &$item) {
-            $item['status_text'] = $statusMap[$item['status']] ?? '未知';
+            $item['account_status_text'] = $statusMap[(int) $item['account_status']] ?? '未知';
+            $item['customer_type_text']  = CustomerType::tryFrom((int) $item['customer_type'])?->label() ?? '未知';
         }
 
         return $this->success([
@@ -227,21 +271,25 @@ class AdminFinanceController extends BaseController
         [$page, $pageSize] = $this->getPageParams();
         $request = $this->app->request;
 
+        // deploy lj_recharge_order 无 store_id：主体为 customer_type + customer_id
         $query = Db::name('recharge_order')
             ->alias('r')
-            ->leftJoin('store s', 's.id = r.store_id');
+            ->leftJoin('store s', 's.id = r.customer_id AND r.customer_type = ' . CustomerType::STORE->value)
+            ->leftJoin('partner pt', 'pt.id = r.customer_id AND r.customer_type = ' . CustomerType::PARTNER->value);
 
         if ($status = $request->param('status/d')) {
             $query->where('r.status', $status);
         }
         if ($storeId = $request->param('store_id/d')) {
-            $query->where('r.store_id', $storeId);
+            $query->where('r.customer_type', CustomerType::STORE->value)
+                ->where('r.customer_id', $storeId);
         }
 
         $total = $query->count();
         $list = $query->field([
-                'r.id', 'r.recharge_no', 'r.store_id', 's.store_name',
-                'r.recharge_amount_cent', 'r.recharge_method',
+                'r.id', 'r.recharge_no', 'r.customer_type', 'r.customer_id',
+                Db::raw('COALESCE(s.store_name, pt.business_entity) as customer_name'),
+                'r.amount_cent', 'r.recharge_method', 'r.offline_voucher',
                 'r.status', 'r.remark', 'r.created_at',
             ])
             ->order('r.id', 'desc')
@@ -249,9 +297,9 @@ class AdminFinanceController extends BaseController
             ->select()
             ->toArray();
 
-        $statusMap = [0 => '待支付', 1 => '待审核', 2 => '已完成', 3 => '已取消'];
+        $statusMap = RechargeStatus::options();
         foreach ($list as &$item) {
-            $item['status_text'] = $statusMap[$item['status']] ?? '未知';
+            $item['status_text'] = $statusMap[(int) $item['status']] ?? '未知';
         }
 
         return $this->success([
@@ -263,67 +311,58 @@ class AdminFinanceController extends BaseController
     /**
      * 储值审核处理
      * POST /api/v1/admin/finance/recharge-audit/:id
+     *
+     * 批次2c：审核通过入账统一走 BalanceAccountService::confirmRecharge
+     * （同事务更新储值单状态 + 余额 + 不可变流水），状态对齐 deploy 1-6。
      */
     public function rechargeAuditProcess(int $id): \think\Response
     {
         $data = $this->app->request->post();
-        $action = (int)($data['action'] ?? 0); // 1=通过 2=驳回
+        $action = (int) ($data['action'] ?? 0); // 1=通过 2=驳回
 
         $recharge = Db::name('recharge_order')->where('id', $id)->find();
         if (!$recharge) {
             return $this->error('储值单不存在', 1004);
         }
-        if ($recharge['status'] !== 1) {
+        if ((int) $recharge['status'] !== RechargeStatus::PENDING_REVIEW->value) {
             return $this->error('该储值单不在待审核状态', 4001);
         }
+
+        $operatorId = $this->getAccountId();
 
         Db::startTrans();
         try {
             if ($action === 1) {
-                // 审核通过：增加余额
-                Db::name('recharge_order')->where('id', $id)->update([
-                    'status' => 2,
-                ]);
-                Db::name('customer_balance_account')
-                    ->where('store_id', $recharge['store_id'])
-                    ->inc('available_balance_cent', $recharge['recharge_amount_cent'])
-                    ->inc('total_recharge_cent', $recharge['recharge_amount_cent'])
-                    ->update();
-
-                // 记录流水
-                Db::name('customer_balance_transaction')->insert([
-                    'account_id' => $recharge['store_id'],
-                    'store_id' => $recharge['store_id'],
-                    'type' => 'recharge',
-                    'direction' => 'in',
-                    'amount_cent' => $recharge['recharge_amount_cent'],
-                    'balance_before_cent' => 0,
-                    'balance_after_cent' => $recharge['recharge_amount_cent'],
-                    'biz_type' => 'recharge',
-                    'biz_id' => $recharge['id'],
-                    'biz_no' => $recharge['recharge_no'],
-                    'remark' => '储值审核通过',
-                    'created_at' => date('Y-m-d H:i:s'),
-                ]);
+                // 审核通过：事务内入账（储值单状态 + 余额 + 流水）
+                $balanceService = new BalanceAccountService();
+                $balanceService->confirmRecharge(
+                    (string) $recharge['recharge_no'],
+                    $operatorId,
+                    '管理员',
+                );
             } else {
-                // 审核驳回
+                // 审核驳回：关闭储值单
                 Db::name('recharge_order')->where('id', $id)->update([
-                    'status' => 3,
-                    'remark' => $data['remark'] ?? '审核驳回',
+                    'status'        => RechargeStatus::CLOSED->value,
+                    'reviewer_id'   => $operatorId,
+                    'reviewer_name' => '管理员',
+                    'reviewed_at'   => date('Y-m-d H:i:s'),
+                    'remark'        => $data['remark'] ?? '审核驳回',
                 ]);
             }
 
             Db::name('operation_log')->insert([
-                'operator_type' => 'admin',
-                'operator_id' => $this->getAccountId(),
+                'module'        => 'finance',
+                'action'        => $action === 1 ? 'recharge_approve' : 'recharge_reject',
+                'target_type'   => 'recharge_order',
+                'target_id'     => $id,
+                'target_no'     => $recharge['recharge_no'],
+                'operator_id'   => $operatorId,
                 'operator_name' => '管理员',
-                'action' => $action === 1 ? 'recharge_approve' : 'recharge_reject',
-                'target_type' => 'recharge_order',
-                'target_id' => $id,
-                'target_no' => $recharge['recharge_no'],
-                'detail' => $data['remark'] ?? ($action === 1 ? '审核通过' : '审核驳回'),
-                'ip' => $this->app->request->ip(),
-                'created_at' => date('Y-m-d H:i:s'),
+                'operator_role' => 'admin',
+                'ip_address'    => $this->app->request->ip(),
+                'remark'        => $data['remark'] ?? ($action === 1 ? '审核通过' : '审核驳回'),
+                'created_at'    => date('Y-m-d H:i:s'),
             ]);
 
             Db::commit();
@@ -349,37 +388,37 @@ class AdminFinanceController extends BaseController
             return $this->paramError('日期范围不能为空');
         }
 
-        // 汇总数据
+        // 汇总数据（deploy 列名：payment_channel / pay_amount_cent / refund_amount_cent）
         $paymentSummary = Db::name('payment')
-            ->where('pay_status', 1)
+            ->where('pay_status', PayStatus::SUCCESS->value)
             ->where('paid_at', '>=', $startDate . ' 00:00:00')
             ->where('paid_at', '<=', $endDate . ' 23:59:59')
             ->field([
-                'pay_channel',
+                'payment_channel',
                 Db::raw('COUNT(*) as pay_count'),
                 Db::raw('SUM(pay_amount_cent) as total_amount_cent'),
             ])
-            ->group('pay_channel')
+            ->group('payment_channel')
             ->select()
             ->toArray();
 
         $rechargeSummary = Db::name('recharge_order')
-            ->where('status', 2)
+            ->where('status', RechargeStatus::CREDITED->value)
             ->where('created_at', '>=', $startDate . ' 00:00:00')
             ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->field([
                 Db::raw('COUNT(*) as recharge_count'),
-                Db::raw('SUM(recharge_amount_cent) as total_amount_cent'),
+                Db::raw('SUM(amount_cent) as total_amount_cent'),
             ])
             ->find();
 
         $refundSummary = Db::name('payment')
-            ->where('pay_status', 3)
+            ->where('pay_status', PayStatus::REFUNDED->value)
             ->where('refunded_at', '>=', $startDate . ' 00:00:00')
             ->where('refunded_at', '<=', $endDate . ' 23:59:59')
             ->field([
                 Db::raw('COUNT(*) as refund_count'),
-                Db::raw('SUM(refund_amount) as total_refund_amount'),
+                Db::raw('SUM(refund_amount_cent) as total_refund_amount_cent'),
             ])
             ->find();
 

@@ -82,7 +82,7 @@ class Store extends BaseModel
     public function balanceAccount(): \think\model\relation\HasOne
     {
         return $this->hasOne(CustomerBalanceAccount::class, 'customer_id', 'id')
-            ->where('customer_type', 'store');
+            ->where('customer_type', \app\common\enum\CustomerType::STORE->value);
     }
 
     /**

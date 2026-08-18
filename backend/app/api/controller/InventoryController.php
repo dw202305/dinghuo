@@ -60,41 +60,18 @@ class InventoryController extends BaseController
     /**
      * 面料库存查询
      * GET /api/v1/inventory/fabric-stock
+     *
+     * 批次2c：deploy/mysql/init.sql 无面料库存表（lj_store_inventory 仅存
+     * 套件库存 kit_sku/total_purchased/available/locked 等列，旧代码引用的
+     * sku_no/quantity/locked_quantity 均不存在）。面料库存数据源待 PRD 补充，
+     * 接口暂返回空列表避免查询不存在的列。
+     *
+     * 影响面补漏 18：直接返回数组（FabricStockItem[]），对齐 store 端
+     * getFabricStockList 的 FabricStockItem[] 类型声明，不再包分页对象。
      */
     public function fabricStock(): \think\Response
     {
-        [$page, $pageSize] = $this->getPageParams();
-        $request = $this->app->request;
-        $storeId = $this->getStoreId();
-
-        $query = Db::name('store_inventory')
-            ->alias('si')
-            ->leftJoin('fabric f', 'f.fabric_no = si.sku_no')
-            ->where('si.store_id', $storeId);
-
-        if ($keyword = $request->param('keyword', '')) {
-            $query->where('si.sku_no|f.name', 'like', '%' . $keyword . '%');
-        }
-
-        $total = $query->count();
-        $list = $query->field([
-                'si.id', 'si.sku_no', 'si.quantity', 'si.locked_quantity',
-                'f.name as fabric_name', 'f.series', 'f.main_image',
-                'f.price_per_sqm', 'f.stock_status',
-            ])
-            ->order('si.id', 'desc')
-            ->page($page, $pageSize)
-            ->select()
-            ->toArray();
-
-        foreach ($list as &$item) {
-            $item['available_quantity'] = $item['quantity'] - $item['locked_quantity'];
-        }
-
-        return $this->success([
-            'list' => $list, 'total' => $total,
-            'page' => $page, 'page_size' => $pageSize,
-        ]);
+        return $this->success([]);
     }
 
 }

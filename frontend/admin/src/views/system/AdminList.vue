@@ -68,7 +68,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.status === 1"
-              @change="(val: boolean) => handleToggleStatus(row, val)"
+              @change="(val: string | number | boolean) => handleToggleStatus(row as AdminInfo & { _statusToggling?: boolean }, val === true)"
               :loading="row._statusToggling"
               inline-prompt
               active-text="启"
@@ -88,9 +88,9 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
-            <el-button type="warning" link size="small" @click="handleResetPassword(row)">重置密码</el-button>
-            <el-button type="danger" link size="small" @click="handleDeleteAdmin(row)">删除</el-button>
+            <el-button type="primary" link size="small" @click="openEditDialog(row as AdminInfo)">编辑</el-button>
+            <el-button type="warning" link size="small" @click="handleResetPassword(row as AdminInfo)">重置密码</el-button>
+            <el-button type="danger" link size="small" @click="handleDeleteAdmin(row as AdminInfo)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

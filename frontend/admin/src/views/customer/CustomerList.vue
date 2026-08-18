@@ -76,7 +76,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.status === 1"
-              @change="(val: boolean) => handleToggleStatus(row, val)"
+              @change="(val: string | number | boolean) => handleToggleStatus(row as TableRow, val === true)"
               :loading="row._toggling"
               inline-prompt
               active-text="启"
@@ -91,10 +91,10 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openDetailDrawer(row)">
+            <el-button type="primary" link size="small" @click="openDetailDrawer(row as TableRow)">
               详情
             </el-button>
-            <el-button type="danger" link size="small" @click="handleResetPwd(row)">
+            <el-button type="danger" link size="small" @click="handleResetPwd(row as TableRow)">
               重置密码
             </el-button>
           </template>
@@ -275,6 +275,14 @@ import ConfirmDialog from "@/components/ConfirmDialog.vue"
 /** 扩展行类型（增加 toggling 标记） */
 type TableRow = CustomerListItem & { _toggling?: boolean }
 
+/** 客户列表查询参数 */
+interface CustomerQueryParams {
+  keyword?: string
+  customer_level?: number
+  status?: number
+  [key: string]: unknown
+}
+
 const {
   loading,
   tableData,
@@ -284,8 +292,8 @@ const {
   handleReset,
   handlePageChange,
   handleSizeChange
-} = useTable<TableRow, Record<string, unknown>>({
-  fetchApi: getCustomerList as unknown as (params: Record<string, unknown>) => Promise<{ list: TableRow[]; total: number }>,
+} = useTable<TableRow, CustomerQueryParams>({
+  fetchApi: getCustomerList as unknown as (params: CustomerQueryParams) => Promise<{ list: TableRow[]; total: number }>,
   defaultParams: { keyword: undefined, customer_level: undefined, status: undefined }
 })
 

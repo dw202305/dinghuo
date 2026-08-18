@@ -5,6 +5,7 @@ namespace app\common\service;
 
 use app\common\model\Order;
 use app\common\model\Store;
+use app\common\enum\CustomerType;
 use think\exception\ValidateException;
 use think\facade\Db;
 use think\facade\Log;
@@ -60,10 +61,11 @@ class OwnershipService extends BaseService
         $partner = null;
         $salesId = null;
         $salesName = null;
-        $channelMode = 2; // 默认公司直营
+        // 批次2c：渠道模式读 deploy lj_store.channel_mode（1城市合伙人渠道 2公司直营）
+        $channelMode = (int) ($store['channel_mode'] ?? 2);
         $rule = 'direct';
 
-        // 判断渠道归属
+        // 判断渠道归属（deploy lj_partner 主归属列 primary_sales_id，名称列 business_entity）
         if ($partnerId) {
             $partner = Db::name('partner')
                 ->where('id', $partnerId)
@@ -71,37 +73,37 @@ class OwnershipService extends BaseService
                 ->find();
 
             if ($partner) {
-                $channelMode = 1; // 城市合伙人渠道
                 $rule = 'inherited_from_partner';
 
-                // 继承合伙人的公司销售
-                $salesId = $partner['sales_id'] ?? null;
+                // 继承合伙人的公司销售（deploy 表名 lj_sales）
+                $salesId = $partner['primary_sales_id'] ?? null;
                 if ($salesId) {
-                    $sales = Db::name('sales_staff')->where('id', $salesId)->find();
+                    $sales = Db::name('sales')->where('id', $salesId)->find();
                     $salesName = $sales['name'] ?? null;
                 }
             }
         }
 
-        // 无合伙人时，门店直接归公司销售
+        // 无合伙人时，门店直接归公司销售（deploy lj_store.primary_sales_id）
         if (!$partnerId || !$partner) {
-            $salesId = $store['sales_id'] ?? null;
+            $salesId = $store['primary_sales_id'] ?? null;
             if ($salesId) {
-                $sales = Db::name('sales_staff')->where('id', $salesId)->find();
+                $sales = Db::name('sales')->where('id', $salesId)->find();
                 $salesName = $sales['name'] ?? null;
             }
             $rule = 'direct_store_sales';
         }
 
         return [
-            'transaction_type' => 1, // 门店
+            'transaction_type' => CustomerType::STORE->value,
             'transaction_id'   => $storeId,
             'service_store_id' => $storeId,
             'partner_id'       => $partnerId,
-            'partner_name'     => $partner['name'] ?? null,
+            'partner_name'     => $partner['business_entity'] ?? null,
             'sales_id'         => $salesId,
             'sales_name'       => $salesName,
             'channel_mode'     => $channelMode,
+            'crm_customer_id'  => $store['crm_customer_id'] ?? null,
             'rule'             => $rule,
             'determined_at'    => date('Y-m-d H:i:s'),
         ];
@@ -111,8 +113,11 @@ class OwnershipService extends BaseService
      * 订单创建时填充归属快照字段
      *
      * 将当前归属关系写入订单快照字段，确保后续归属变更不影响历史订单（PRD 4.0.4）。
-     * 快照字段包括：交易主体、服务门店、合伙人、成交销售、当前服务销售、
-     * 协同销售、CRM客户及商机ID、归属确定时间和规则。
+     *
+     * 批次2c：快照列对齐 deploy lj_order 实际列——partner_snapshot_id /
+     * primary_sales_snapshot_id / current_service_sales_id / secondary_sales_snapshot_id /
+     * crm_customer_snapshot_id(VARCHAR) / crm_opportunity_id；旧的名称类快照、
+     * channel_mode_snapshot、ownership_rule/determined_at 等 deploy 无对应列，已删除。
      *
      * @param Order $order 订单模型（引用传递，直接修改）
      * @return void
@@ -126,30 +131,21 @@ class OwnershipService extends BaseService
 
         $ownership = $this->determineOwnership($storeId);
 
-        // 填充归属快照字段
+        // 填充归属快照字段（deploy lj_order 实际列）
         $snapshotData = [
-            // 交易归属
-            'transaction_type'       => $ownership['transaction_type'],
-            'transaction_id'         => $ownership['transaction_id'],
-            // 实际服务门店
-            'service_store_id'       => $ownership['service_store_id'],
-            // 渠道归属快照
-            'partner_id_snapshot'    => $ownership['partner_id'],
-            'partner_name_snapshot'  => $ownership['partner_name'],
-            'channel_mode_snapshot'  => $ownership['channel_mode'],
-            // 公司销售归属快照
-            'sales_id_snapshot'      => $ownership['sales_id'],
-            'sales_name_snapshot'    => $ownership['sales_name'],
+            // 渠道归属快照：城市合伙人ID
+            'partner_snapshot_id'        => $ownership['partner_id'],
+            // 公司销售归属快照：主归属销售
+            'primary_sales_snapshot_id'  => $ownership['sales_id'],
             // 当前服务销售（初始等于成交销售）
-            'current_service_sales_id' => $ownership['sales_id'],
+            'current_service_sales_id'   => $ownership['sales_id'],
             // 协同销售（初始为空）
-            'collaborating_sales_id' => null,
-            // CRM 快照
-            'crm_customer_id'        => $this->getPartnerCrmCustomerId($ownership['partner_id']),
-            'crm_opportunity_id'     => null,
-            // 归属元信息
-            'ownership_rule'         => $ownership['rule'],
-            'ownership_determined_at' => $ownership['determined_at'],
+            'secondary_sales_snapshot_id' => null,
+            // CRM 快照（VARCHAR(50)）：门店自身 CRM 客户ID
+            'crm_customer_snapshot_id'   => $ownership['crm_customer_id'] !== null
+                ? (string) $ownership['crm_customer_id']
+                : null,
+            'crm_opportunity_id'         => null,
         ];
 
         $order->save($snapshotData);
@@ -178,9 +174,9 @@ class OwnershipService extends BaseService
      */
     public function handleSalesTransfer(int $fromSalesId, int $toSalesId, array $options = []): array
     {
-        // 校验销售人员存在性
-        $fromSales = Db::name('sales_staff')->where('id', $fromSalesId)->find();
-        $toSales = Db::name('sales_staff')->where('id', $toSalesId)->find();
+        // 校验销售人员存在性（deploy 表名 lj_sales）
+        $fromSales = Db::name('sales')->where('id', $fromSalesId)->find();
+        $toSales = Db::name('sales')->where('id', $toSalesId)->find();
 
         if (!$fromSales || !$toSales) {
             throw new ValidateException('销售人员不存在');
@@ -206,9 +202,9 @@ class OwnershipService extends BaseService
                 'orders_transferred'   => 0,
             ];
 
-            // 1. 查找原销售负责的城市合伙人
+            // 1. 查找原销售负责的城市合伙人（deploy lj_partner.primary_sales_id）
             $partnerQuery = Db::name('partner')
-                ->where('sales_id', $fromSalesId)
+                ->where('primary_sales_id', $fromSalesId)
                 ->where('status', 1);
 
             if (!empty($partnerIds)) {
@@ -221,13 +217,13 @@ class OwnershipService extends BaseService
                 // 2. 更新合伙人的当前维护销售
                 Db::name('partner')
                     ->where('id', $partner['id'])
-                    ->update(['sales_id' => $toSalesId]);
+                    ->update(['primary_sales_id' => $toSalesId]);
 
                 // 写入合伙人归属历史
                 $this->writeOwnershipHistory(
-                    'partner',
-                    $partner['id'],
-                    $fromSalesId,
+                    CustomerType::PARTNER,
+                    (int) $partner['id'],
+                    null,
                     $toSalesId,
                     $reason,
                     $operatorId,
@@ -237,7 +233,7 @@ class OwnershipService extends BaseService
 
                 $stats['partners_transferred']++;
 
-                // 3. 同步更新下属门店的当前维护销售
+                // 3. 同步更新下属门店的当前维护销售（deploy lj_store.primary_sales_id）
                 $stores = Db::name('store')
                     ->where('partner_id', $partner['id'])
                     ->where('status', 1)
@@ -247,13 +243,13 @@ class OwnershipService extends BaseService
                 foreach ($stores as $store) {
                     Db::name('store')
                         ->where('id', $store['id'])
-                        ->update(['sales_id' => $toSalesId]);
+                        ->update(['primary_sales_id' => $toSalesId]);
 
                     // 写入门店归属历史
                     $this->writeOwnershipHistory(
-                        'store',
-                        $store['id'],
-                        $fromSalesId,
+                        CustomerType::STORE,
+                        (int) $store['id'],
+                        (int) ($partner['id'] ?? 0),
                         $toSalesId,
                         $reason,
                         $operatorId,
@@ -267,13 +263,25 @@ class OwnershipService extends BaseService
                 // 4. 转交未完成订单的当前服务销售
                 if ($transferPendingOrders) {
                     $affectedStores = array_column($stores, 'id');
-                    $affectedStores[] = $partner['id']; // 合伙人自营订单
 
-                    // 更新未完成订单的当前服务销售
-                    $orderAffected = Db::name('order')
-                        ->whereIn('service_store_id', $affectedStores)
+                    // 更新未完成订单的当前服务销售（门店主体订单）
+                    $orderAffected = 0;
+                    if (!empty($affectedStores)) {
+                        $orderAffected += Db::name('order')
+                            ->whereIn('service_store_id', $affectedStores)
+                            ->whereIn('order_status', [
+                                // 非终态的订单
+                                2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17,
+                            ])
+                            ->where('current_service_sales_id', $fromSalesId)
+                            ->update(['current_service_sales_id' => $toSalesId]);
+                    }
+
+                    // 合伙人自营订单（transaction_type=2，service_store_id 可为空）
+                    $orderAffected += Db::name('order')
+                        ->where('transaction_type', CustomerType::PARTNER->value)
+                        ->where('transaction_id', $partner['id'])
                         ->whereIn('order_status', [
-                            // 非终态的订单
                             2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 17,
                         ])
                         ->where('current_service_sales_id', $fromSalesId)
@@ -287,7 +295,7 @@ class OwnershipService extends BaseService
             $this->logOperation(
                 module: 'ownership',
                 action: 'sales_transfer',
-                targetType: 'sales_staff',
+                targetType: 'sales',
                 targetId: $fromSalesId,
                 beforeData: ['sales_id' => $fromSalesId, 'sales_name' => $fromSales['name']],
                 afterData: ['sales_id' => $toSalesId, 'sales_name' => $toSales['name']],
@@ -317,14 +325,14 @@ class OwnershipService extends BaseService
     {
         $partner = Db::name('partner')
             ->alias('p')
-            ->leftJoin('sales_staff ss', 'ss.id = p.sales_id')
+            ->leftJoin('sales ss', 'ss.id = p.primary_sales_id')
             ->where('p.id', $partnerId)
             ->field([
                 'p.id as partner_id',
-                'p.name as partner_name',
-                'p.sales_id',
+                'p.business_entity as partner_name',
+                'p.primary_sales_id',
                 'ss.name as sales_name',
-                'ss.id as sales_staff_id',
+                'ss.id as sales_id',
             ])
             ->find();
 
@@ -341,7 +349,7 @@ class OwnershipService extends BaseService
                 'store_no',
                 'store_name',
                 'customer_level',
-                'sales_id',
+                'primary_sales_id',
             ])
             ->select()
             ->toArray();
@@ -360,65 +368,63 @@ class OwnershipService extends BaseService
     /**
      * 写入归属变更历史
      *
-     * 记录归属关系变更的完整信息，包括变更前后、原因、审批等。
+     * 批次2c：列对齐 deploy lj_customer_attribution_history（customer_type/
+     * customer_id/channel_mode/partner_id/primary_sales_id/attribution_source/
+     * effective_time/is_current/change_reason/cascade_from_partner）。
+     * 归属来源：销售转交 = 4转移；级联继承 = 3继承。
+     * 写入前将同主体旧记录的 is_current 置 0。
      *
-     * @param string $subjectType 主体类型（partner/store）
-     * @param int $subjectId 主体ID
-     * @param int $fromSalesId 原销售ID
-     * @param int $toSalesId 新销售ID
+     * @param CustomerType $customerType 客户主体类型
+     * @param int $customerId 客户主体ID
+     * @param int|null $partnerId 城市合伙人ID（门店主体时传入）
+     * @param int $toSalesId 新主归属销售ID
      * @param string $reason 变更原因
-     * @param int $operatorId 操作人ID
-     * @param int $reviewerId 审批人ID
+     * @param int $operatorId 操作人ID（预留，当前表无对应列）
+     * @param int $reviewerId 审批人ID（预留，当前表无对应列）
      * @param bool $isCascade 是否级联更新
      * @return void
      */
     private function writeOwnershipHistory(
-        string $subjectType,
-        int $subjectId,
-        int $fromSalesId,
+        CustomerType $customerType,
+        int $customerId,
+        ?int $partnerId,
         int $toSalesId,
         string $reason,
         int $operatorId,
         int $reviewerId,
         bool $isCascade = false
     ): void {
-        // 获取销售姓名
-        $fromSales = Db::name('sales_staff')->where('id', $fromSalesId)->find();
-        $toSales = Db::name('sales_staff')->where('id', $toSalesId)->find();
+        $now = date('Y-m-d H:i:s');
 
-        // 确定归属来源
-        $source = $isCascade ? 'cascade_from_partner' : 'manual_transfer';
-
-        Db::name('customer_attribution_history')->insert([
-            'subject_type'    => $subjectType,
-            'subject_id'      => $subjectId,
-            'from_sales_id'   => $fromSalesId,
-            'from_sales_name' => $fromSales['name'] ?? '',
-            'to_sales_id'     => $toSalesId,
-            'to_sales_name'   => $toSales['name'] ?? '',
-            'source'          => $source,
-            'reason'          => $reason,
-            'operator_id'     => $operatorId,
-            'reviewer_id'     => $reviewerId,
-            'is_cascade'      => $isCascade ? 1 : 0,
-            'effective_at'    => date('Y-m-d H:i:s'),
-            'created_at'      => date('Y-m-d H:i:s'),
-        ]);
-    }
-
-    /**
-     * 获取合伙人的 CRM 客户 ID
-     *
-     * @param int|null $partnerId 合伙人ID
-     * @return int|null
-     */
-    private function getPartnerCrmCustomerId(?int $partnerId): ?int
-    {
-        if (!$partnerId) {
-            return null;
+        // 门店主体补全渠道模式与合伙人；合伙人主体直营语义下 channel_mode=2
+        $channelMode = 2;
+        if ($customerType === CustomerType::STORE) {
+            $store = Db::name('store')->where('id', $customerId)->find();
+            $channelMode = (int) ($store['channel_mode'] ?? 2);
         }
 
-        $partner = Db::name('partner')->where('id', $partnerId)->find();
-        return $partner ? ($partner['crm_customer_id'] ?? null) : null;
+        // 旧当前记录置失效
+        Db::name('customer_attribution_history')
+            ->where('customer_type', $customerType->value)
+            ->where('customer_id', $customerId)
+            ->where('is_current', 1)
+            ->update(['is_current' => 0, 'expire_time' => $now]);
+
+        Db::name('customer_attribution_history')->insert([
+            'customer_type'        => $customerType->value,
+            'customer_id'          => $customerId,
+            'channel_mode'         => $channelMode,
+            'partner_id'           => $partnerId,
+            'primary_sales_id'     => $toSalesId,
+            'secondary_sales_id'   => null,
+            // 归属来源：级联=3继承，手动转交=4转移
+            'attribution_source'   => $isCascade ? 3 : 4,
+            'effective_time'       => $now,
+            'expire_time'          => null,
+            'is_current'           => 1,
+            'change_reason'        => $reason !== '' ? $reason : null,
+            'cascade_from_partner' => $isCascade ? 1 : 0,
+            'created_at'           => $now,
+        ]);
     }
 }

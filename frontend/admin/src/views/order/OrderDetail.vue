@@ -298,7 +298,6 @@
                   :key="item.log_id"
                   :timestamp="formatDateTime(item.created_at)"
                   :type="getStatusTimelineType(item.action)"
-                  size="small"
                 >
                   <span class="status-flow-text">{{ item.action_text }}</span>
                 </el-timeline-item>
@@ -408,7 +407,8 @@ import {
   enterShipping,
   cancelOrder
 } from "@/api/order"
-import type { OrderDetail as OrderDetailType, OrderTimeline } from "@/api/order"
+import type { OrderTimeline } from "@/api/order"
+import type { OrderDetail as OrderDetailType } from "@/types/order"
 import { OrderStatus } from "@/types/common"
 import { formatMoney, formatDateTime, formatPhone, formatArea } from "@/utils/format"
 import StatusTag from "@/components/StatusTag.vue"

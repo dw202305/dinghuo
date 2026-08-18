@@ -21,7 +21,7 @@
         <div class="left-tabs">
           <div
             v-for="tab in filterTabs"
-            :key="tab.value"
+            :key="tab.value ?? 'all'"
             :class="['tab-item', { active: currentTab === tab.value }]"
             @click="switchTab(tab.value)"
           >
@@ -117,7 +117,7 @@
               <el-table-column label="非标" width="80" align="center">
                 <template #default="{ row }">
                   <el-tag
-                    v-if="isNonstandard(row)"
+                    v-if="isNonstandard(row as OrderItemDetail)"
                     type="warning"
                     size="small"
                     effect="dark"

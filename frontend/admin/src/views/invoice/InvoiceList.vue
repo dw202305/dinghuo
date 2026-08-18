@@ -92,7 +92,7 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleViewDetail(row)">
+            <el-button type="primary" link size="small" @click="handleViewDetail(row as InvoiceItem)">
               详情
             </el-button>
             <el-button
@@ -100,7 +100,7 @@
               type="success"
               link
               size="small"
-              @click="handleApprove(row)"
+              @click="handleApprove(row as InvoiceItem)"
             >
               审核通过
             </el-button>
@@ -109,7 +109,7 @@
               type="warning"
               link
               size="small"
-              @click="handleIssue(row)"
+              @click="handleIssue(row as InvoiceItem)"
             >
               开具发票
             </el-button>
@@ -118,7 +118,7 @@
               type="danger"
               link
               size="small"
-              @click="handleReject(row)"
+              @click="handleReject(row as InvoiceItem)"
             >
               驳回
             </el-button>
@@ -127,7 +127,7 @@
               type="danger"
               link
               size="small"
-              @click="handleInvalidate(row)"
+              @click="handleInvalidate(row as InvoiceItem)"
             >
               作废
             </el-button>
@@ -251,6 +251,16 @@ import SearchForm from "@/components/SearchForm.vue"
 import TablePagination from "@/components/TablePagination.vue"
 import StatusTag from "@/components/StatusTag.vue"
 
+/** 发票列表查询参数 */
+interface InvoiceQueryParams {
+  keyword?: string
+  invoice_type?: number
+  status?: number
+  start_date?: string
+  end_date?: string
+  [key: string]: unknown
+}
+
 /** 日期范围 */
 const dateRange = ref<[string, string] | null>(null)
 
@@ -279,8 +289,8 @@ const {
   handleReset,
   handlePageChange,
   handleSizeChange
-} = useTable({
-  fetchApi: (params: Record<string, unknown>) => getInvoiceList(params) as unknown as Promise<{ list: InvoiceItem[]; total: number }>,
+} = useTable<InvoiceItem, InvoiceQueryParams>({
+  fetchApi: (params: InvoiceQueryParams) => getInvoiceList(params) as unknown as Promise<{ list: InvoiceItem[]; total: number }>,
   defaultParams: {
     keyword: undefined,
     invoice_type: undefined,
@@ -293,11 +303,11 @@ const {
 /** 搜索时同步日期参数 */
 watch(dateRange, () => {
   if (dateRange.value) {
-    (queryParams as Record<string, unknown>).start_date = dateRange.value[0]
-    (queryParams as Record<string, unknown>).end_date = dateRange.value[1]
+    ;(queryParams as Record<string, unknown>).start_date = dateRange.value[0]
+    ;(queryParams as Record<string, unknown>).end_date = dateRange.value[1]
   } else {
-    (queryParams as Record<string, unknown>).start_date = undefined
-    (queryParams as Record<string, unknown>).end_date = undefined
+    ;(queryParams as Record<string, unknown>).start_date = undefined
+    ;(queryParams as Record<string, unknown>).end_date = undefined
   }
 })
 

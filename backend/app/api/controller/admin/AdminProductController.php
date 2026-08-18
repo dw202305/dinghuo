@@ -5,6 +5,7 @@ namespace app\api\controller\admin;
 
 use app\api\controller\BaseController;
 use app\api\validate\AdminValidate;
+use app\common\support\Money;
 use think\exception\ValidateException;
 use think\facade\Db;
 
@@ -45,9 +46,9 @@ class AdminProductController extends BaseController
 
         $sort = $request->param('sort', '');
         if ($sort === 'price_asc') {
-            $query->order('price_per_sqm', 'asc');
+            $query->order('price_per_sqm_cent', 'asc');
         } elseif ($sort === 'price_desc') {
-            $query->order('price_per_sqm', 'desc');
+            $query->order('price_per_sqm_cent', 'desc');
         } else {
             $query->order('sort_weight', 'desc')->order('id', 'desc');
         }
@@ -60,6 +61,8 @@ class AdminProductController extends BaseController
             $item['fabric_id'] = $item['id'];
             $item['function_tags'] = json_decode($item['function_tags'] ?? '[]', true);
             $item['stock_status_text'] = $stockMap[$item['stock_status']] ?? '';
+            // API 兼容：额外输出元显示价（仅展示用，不参与结算）
+            $item['price_per_sqm'] = number_format(((int) ($item['price_per_sqm_cent'] ?? 0)) / 100, 2, '.', '');
         }
 
         return $this->success(['list' => $list, 'total' => $total, 'page' => $page, 'page_size' => $pageSize]);
@@ -115,6 +118,17 @@ class AdminProductController extends BaseController
 
         $fabricId = (int) ($data['fabric_id'] ?? 0);
 
+        // 批次2c：deploy lj_fabric 价格列为 price_per_sqm_cent（整数分）；
+        // 兼容元入参 price_per_sqm，字符串转分（禁 float）
+        if (!isset($data['price_per_sqm_cent']) || $data['price_per_sqm_cent'] === '') {
+            if (isset($data['price_per_sqm']) && $data['price_per_sqm'] !== '') {
+                $data['price_per_sqm_cent'] = Money::mulCent((string) $data['price_per_sqm'], 100);
+            }
+        } else {
+            $data['price_per_sqm_cent'] = (int) $data['price_per_sqm_cent'];
+        }
+        unset($data['price_per_sqm']);
+
         // JSON字段
         foreach (['function_tags', 'texture_tags', 'detail_images'] as $field) {
             if (isset($data[$field]) && is_array($data[$field])) {
@@ -154,6 +168,9 @@ class AdminProductController extends BaseController
     /**
      * 面料批量调价
      * POST /api/v1/admin/product/fabric/batch-price
+     *
+     * 批次2c：金额改整数分运算（禁 float）：fixed 按元差额转分累加，
+     * percent 用 bcmath 倍率；列名对齐 deploy price_per_sqm_cent。
      */
     public function fabricBatchPrice(): \think\Response
     {
@@ -164,25 +181,29 @@ class AdminProductController extends BaseController
         }
 
         $fabricIds = (array) $data['fabric_ids'];
-        $adjustType  = $data['adjust_type'];
-        $adjustValue = (float) $data['adjust_value'];
+        $adjustType  = (string) $data['adjust_type'];
+        $adjustValue = (string) $data['adjust_value'];
 
         $affectedCount = 0;
 
-        Db::transaction(function () use ($fabricIds, $adjustType, $adjustValue, &$affectedCount) {
+        Db::transaction(function () use ($fabricIds, $adjustType, $adjustValue, $data, &$affectedCount) {
             foreach ($fabricIds as $fabricId) {
                 $fabric = Db::name('fabric')->where('id', $fabricId)->find();
                 if (!$fabric) continue;
 
-                $oldPrice = (float) $fabric['price_per_sqm'];
+                $oldPriceCent = (int) $fabric['price_per_sqm_cent'];
                 if ($adjustType === 'fixed') {
-                    $newPrice = max(0, $oldPrice + $adjustValue);
+                    // 固定调价：入参为元，转分后直接设为新价
+                    $newPriceCent = Money::mulCent($adjustValue, 100);
                 } else {
-                    $newPrice = max(0, $oldPrice * (1 + $adjustValue / 100));
+                    // 百分比调价：新价 = 旧价 × (1 + 百分比/100)，bcmath 无 float
+                    $multiplier = bcadd('1', bcdiv($adjustValue, '100', Money::SCALE), Money::SCALE);
+                    $newPriceCent = Money::mulCent($oldPriceCent, $multiplier);
                 }
+                $newPriceCent = max(0, $newPriceCent);
 
                 Db::name('fabric')->where('id', $fabricId)->update([
-                    'price_per_sqm' => round($newPrice, 2),
+                    'price_per_sqm_cent' => $newPriceCent,
                     'price_version' => (int) $fabric['price_version'] + 1,
                     'effective_date' => $data['effective_date'],
                     'updated_at'    => date('Y-m-d H:i:s'),
@@ -352,22 +373,96 @@ class AdminProductController extends BaseController
     /**
      * 套件列表
      * GET /api/v1/admin/product/kit/list
+     *
+     * 批次2c：套件主数据落地 deploy lj_kit（kit_sku/kit_name/customer_level/
+     * kit_price_cent/effective_from/effective_to/status）。
      */
     public function kitList(): \think\Response
     {
-        // TODO: kit 套餐功能待 database.md 补充 lj_kit 表后启用
         [$page, $pageSize] = $this->getPageParams();
-        return $this->success(['list' => [], 'total' => 0, 'page' => $page, 'page_size' => $pageSize]);
+        $request = $this->app->request;
+
+        $query = Db::name('kit');
+
+        if ($customerLevel = $request->param('customer_level/d')) {
+            $query->where('customer_level', $customerLevel);
+        }
+        if (($status = $request->param('status', '')) !== '') {
+            $query->where('status', (int) $status);
+        }
+        if ($keyword = $request->param('keyword', '')) {
+            $query->where('kit_sku|kit_name', 'like', '%' . $keyword . '%');
+        }
+
+        $total = $query->count();
+        $list  = $query->order('id', 'asc')->page($page, $pageSize)->select()->toArray();
+
+        $levelMap = [1 => '认证合作门店', 2 => '城市合伙人'];
+        foreach ($list as &$item) {
+            $item['customer_level_text'] = $levelMap[(int) $item['customer_level']] ?? '';
+            $item['status_text']         = (int) $item['status'] === 1 ? '启用' : '停用';
+        }
+
+        return $this->success(['list' => $list, 'total' => $total, 'page' => $page, 'page_size' => $pageSize]);
     }
 
     /**
      * 套件新增/编辑
      * POST /api/v1/admin/product/kit/save
+     *
+     * 批次2c：写入 deploy lj_kit 实际列；金额优先取整数分入参 kit_price_cent，
+     * 兼容元入参 kit_price（字符串转分，禁 float）。
      */
     public function kitSave(): \think\Response
     {
-        // TODO: kit 套餐功能待 database.md 补充 lj_kit 表后启用
-        return $this->error('套件功能暂未开放');
+        $data = $this->app->request->post();
+
+        if (empty($data['kit_sku']) || empty($data['kit_name']) || empty($data['customer_level'])) {
+            return $this->paramError('套件SKU、名称、适用客户等级不能为空');
+        }
+
+        // 金额：整数分优先；元入参用 Money 字符串转分（禁 float）
+        if (isset($data['kit_price_cent']) && $data['kit_price_cent'] !== '') {
+            $kitPriceCent = (int) $data['kit_price_cent'];
+        } elseif (isset($data['kit_price']) && $data['kit_price'] !== '') {
+            $kitPriceCent = Money::mulCent((string) $data['kit_price'], 100);
+        } else {
+            return $this->paramError('套件价格不能为空');
+        }
+        if ($kitPriceCent <= 0) {
+            return $this->paramError('套件价格必须大于0，禁止 0 元套件价');
+        }
+
+        $id = (int) ($data['id'] ?? 0);
+
+        $save = [
+            'kit_sku'        => (string) $data['kit_sku'],
+            'kit_name'       => (string) $data['kit_name'],
+            'customer_level' => (int) $data['customer_level'],
+            'kit_price_cent' => $kitPriceCent,
+            'effective_from' => !empty($data['effective_from']) ? (string) $data['effective_from'] : null,
+            'effective_to'   => !empty($data['effective_to']) ? (string) $data['effective_to'] : null,
+            'status'         => isset($data['status']) ? (int) $data['status'] : 1,
+        ];
+
+        // kit_sku 唯一约束防重
+        $duplicate = Db::name('kit')->where('kit_sku', $save['kit_sku']);
+        if ($id > 0) {
+            $duplicate->where('id', '<>', $id);
+        }
+        if ($duplicate->find()) {
+            return $this->error('套件SKU已存在', 1006);
+        }
+
+        if ($id > 0) {
+            $save['updated_at'] = date('Y-m-d H:i:s');
+            Db::name('kit')->where('id', $id)->update($save);
+            return $this->success(['id' => $id]);
+        }
+
+        $save['created_at'] = date('Y-m-d H:i:s');
+        $newId = Db::name('kit')->insertGetId($save);
+        return $this->success(['id' => $newId]);
     }
 
     // ==================== 供应商管理 ====================

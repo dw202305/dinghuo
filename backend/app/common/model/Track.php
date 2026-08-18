@@ -10,7 +10,7 @@ namespace app\common\model;
  * @property string $sku 轨道SKU
  * @property int $track_type 类型：1横轨 2竖轨
  * @property string $color 颜色
- * @property float $standard_length 标准原料长度(米)
+ * @property string $standard_length 标准原料长度(米，DECIMAL(8,2))
  * @property int $price_per_meter_cent 门店单价(分/米)
  * @property int|null $partner_price_cent 合伙人价格(分)
  * @property int $enabled 是否启用

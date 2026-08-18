@@ -74,7 +74,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.status === 1"
-              @change="(val: boolean) => handleToggleStatus(row, val)"
+              @change="(val: string | number | boolean) => handleToggleStatus(row as TableRow, val === true)"
               inline-prompt
               active-text="启"
               inactive-text="停"
@@ -84,12 +84,12 @@
         <el-table-column label="操作" width="160" fixed="right" align="center">
           <template #default="{ row }">
             <template v-if="row._editing">
-              <el-button type="primary" link size="small" @click="handleSaveEdit(row)">保存</el-button>
-              <el-button type="info" link size="small" @click="cancelEdit(row)">取消</el-button>
+              <el-button type="primary" link size="small" @click="handleSaveEdit(row as TableRow)">保存</el-button>
+              <el-button type="info" link size="small" @click="cancelEdit(row as TableRow)">取消</el-button>
             </template>
             <template v-else>
-              <el-button type="primary" link size="small" @click="startEdit(row)">编辑</el-button>
-              <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+              <el-button type="primary" link size="small" @click="startEdit(row as TableRow)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="handleDelete(row as TableRow)">删除</el-button>
             </template>
           </template>
         </el-table-column>
@@ -179,10 +179,7 @@ const {
   loading,
   tableData,
   total,
-  queryParams,
-  loadData,
-  handlePageChange,
-  handleSizeChange
+  loadData
 } = useTable<TableRow, Record<string, unknown>>({
   fetchApi: getCustomerLevelList as unknown as (params: Record<string, unknown>) => Promise<{ list: TableRow[]; total: number }>,
   defaultParams: {}
@@ -348,10 +345,6 @@ async function confirmDelete(): Promise<void> {
     // 错误已由拦截器处理
   }
 }
-
-// Expose handleSearch / handleReset for template (even though unused here, keep consistent)
-const handleSearch = loadData
-const handleReset = loadData
 </script>
 
 <style scoped>

@@ -98,7 +98,7 @@
           <template #default="{ row }">
             <el-switch
               :model-value="row.listing_status === 1"
-              @change="(val: boolean) => handleToggleStatus(row, val)"
+              @change="(val: string | number | boolean) => handleToggleStatus(row as FabricListItem & { _toggling?: boolean }, val === true)"
               :loading="row._toggling"
               inline-prompt
               active-text="上"
@@ -111,10 +111,10 @@
             <el-button type="primary" link size="small" @click="$router.push(`/fabric/form/${row.id}`)">
               编辑
             </el-button>
-            <el-button type="warning" link size="small" @click="handleToggleStatus(row, row.listing_status !== 1)">
+            <el-button type="warning" link size="small" @click="handleToggleStatus(row as FabricListItem & { _toggling?: boolean }, row.listing_status !== 1)">
               {{ row.listing_status ? "下架" : "上架" }}
             </el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button type="danger" link size="small" @click="handleDelete(row as FabricListItem)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -141,7 +141,6 @@
 
 <script setup lang="ts">
 import { ref } from "vue"
-import { useRouter } from "vue-router"
 import { ElMessage } from "element-plus"
 import { Plus, Picture } from "@element-plus/icons-vue"
 import { getFabricList, toggleFabricStatus, deleteFabric } from "@/api/fabric"
@@ -152,8 +151,6 @@ import { useTable } from "@/composables/useTable"
 import SearchForm from "@/components/SearchForm.vue"
 import TablePagination from "@/components/TablePagination.vue"
 import ConfirmDialog from "@/components/ConfirmDialog.vue"
-
-const router = useRouter()
 
 /** 多选 */
 const selectedIds = ref<number[]>([])

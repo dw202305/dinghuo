@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace app\common\service;
 
+use app\common\enum\TrackType;
+use app\common\model\Store;
+use app\common\support\Money;
 use think\exception\ValidateException;
 use think\facade\Db;
 use think\facade\Log;
@@ -31,6 +34,21 @@ class PriceService extends BaseService
     const HEIGHT_MIN_CM = 50.0;
     /** 高度上限(cm) */
     const HEIGHT_MAX_CM = 600.0;
+
+    // ── 绝对硬限（批次5：两级尺寸管控，超出即拒绝下单）───────────────
+    // 取值依据：在 PRD §4.1.1 标准推荐范围（宽 90~350 / 高 50~600）之外预留
+    // 工程安全裕量——宽向两侧各外扩至 30/500cm（轨道可加工范围），
+    // 高向外扩至 20/800cm（卷管可覆盖范围）；区间内的非标尺寸不拦截，
+    // 仅标记 is_nonstandard 提示联系总部评估。具体硬限待总部工艺确认后
+    // 可在此集中调整（建议后续移入后台配置表）。
+    /** 宽度绝对下限(cm) */
+    const WIDTH_HARD_MIN_CM = 30.0;
+    /** 宽度绝对上限(cm) */
+    const WIDTH_HARD_MAX_CM = 500.0;
+    /** 高度绝对下限(cm) */
+    const HEIGHT_HARD_MIN_CM = 20.0;
+    /** 高度绝对上限(cm) */
+    const HEIGHT_HARD_MAX_CM = 800.0;
 
     /** bcmath 面积计算精度（保留4位小数） */
     const AREA_SCALE = 4;
@@ -78,6 +96,11 @@ class PriceService extends BaseService
         $widthM  = bcdiv((string) $widthCm, '100', self::MONEY_SCALE);
         $heightM = bcdiv((string) $heightCm, '100', self::MONEY_SCALE);
 
+        // 轨道长度（米）：横轨=宽度，竖轨总长=高度×2（两条竖轨），
+        // 落库 lj_order_item.track_horizontal_length_m / track_vertical_length_m（DECIMAL(6,2)）
+        $horizontalLengthM = bcadd($widthM, '0', 2);
+        $verticalLengthM   = bcadd(bcmul($heightM, '2', 4), '0', 2);
+
         // 面积 = width_m × height_m，保留4位小数（规范 7.2）
         $areaM2 = bcmul($widthM, $heightM, self::AREA_SCALE);
 
@@ -98,12 +121,12 @@ class PriceService extends BaseService
             (int) ($itemData['wall_control_quantity'] ?? 0),
         );
 
-        // 5. 套件费用（分）
-        $kitCent = $this->calculateKitCent(
-            $storeId,
-            (int) ($itemData['use_inventory'] ?? 0),
-            (int) ($itemData['inventory_deduct_count'] ?? 0),
-        );
+        // 5. 套件费用（分）：新购按等级套件价，库存抵扣为0
+        $kit = $this->resolveLevelKit($storeId);
+        $undeductCount = max(0, 1 - (int) ($itemData['inventory_deduct_count'] ?? 0));
+        $kitCent = $undeductCount === 0
+            ? '0'
+            : (string) Money::mulCent($undeductCount, (int) $kit['kit_price_cent']);
 
         // 6. 非标费用（门店下单时为0，由后台审核后填写）
         $nonstandardCent = '0';
@@ -127,11 +150,22 @@ class PriceService extends BaseService
             bccomp($heightCm, (string) self::HEIGHT_MAX_CM, 1) > 0
         );
 
+        // 墙面控制单价与费用（分）：落库 lj_order_item.wall_control_price_cent / wall_control_amount_cent
+        $wallControlType = (int) ($itemData['wall_control_type'] ?? 0);
+        $wallControlQuantity = (int) ($itemData['wall_control_quantity'] ?? 0);
+        $wallControlPriceCent = ($wallControlType > 0 && $wallControlQuantity > 0)
+            ? $this->getAccessorySurchargeCent('wall_control', $wallControlType)
+            : 0;
+        $wallControlAmountCent = $wallControlPriceCent * $wallControlQuantity;
+
         return [
             'width_cm'              => $widthCm,
             'height_cm'             => $heightCm,
             'width_m'               => $widthM,
             'height_m'              => $heightM,
+            // 轨道长度（米，2位小数，deploy lj_order_item NOT NULL 列）
+            'track_horizontal_length_m' => $horizontalLengthM,
+            'track_vertical_length_m'   => $verticalLengthM,
             'area_m2'               => $areaM2,
             // 各项费用（分，整数字符串）
             'horizontal_track_cent' => $horizontalTrackCent,
@@ -148,10 +182,13 @@ class PriceService extends BaseService
             // 选装子项明细（分）
             'power_surcharge_cent'  => (string) $this->getPowerSurchargeCent((int) ($itemData['power_type'] ?? 1)),
             'remote_surcharge_cent' => (string) $this->getRemoteSurchargeCent((int) ($itemData['remote_type'] ?? 1)),
-            'wall_control_cent'     => (string) $this->getWallControlCent(
-                (int) ($itemData['wall_control_type'] ?? 0),
-                (int) ($itemData['wall_control_quantity'] ?? 0)
-            ),
+            'wall_control_cent'     => (string) $wallControlAmountCent,
+            'wall_control_price_cent'  => (string) $wallControlPriceCent,
+            'wall_control_amount_cent' => (string) $wallControlAmountCent,
+            // 套件主数据快照（deploy lj_order_item.kit_id / kit_price_cent）
+            'kit_id'         => (int) $kit['id'],
+            'kit_sku'        => (string) $kit['kit_sku'],
+            'kit_price_cent' => (int) $kit['kit_price_cent'],
         ];
     }
 
@@ -218,9 +255,11 @@ class PriceService extends BaseService
      */
     private function calculateHorizontalTrackCent(string $widthM, string $trackColor): string
     {
+        // 批次2c：deploy lj_track.track_type 为 TINYINT（1横轨 2竖轨），
+        // 单价列名 price_per_meter_cent（非 unit_price_cent）
         $track = Db::name('track')
             ->where('color', $trackColor)
-            ->where('track_type', 'horizontal')
+            ->where('track_type', TrackType::HORIZONTAL->value)
             ->where('enabled', 1)
             ->find();
 
@@ -229,10 +268,10 @@ class PriceService extends BaseService
         }
 
         // 单价以分存储（BIGINT），规范 5.1/7.2
-        $pricePerMeterCent = (string) $track['unit_price_cent'];
+        $pricePerMeterCent = (string) $track['price_per_meter_cent'];
 
-        // 横轨费用 = 宽度(米) × 单价(分/米)，四舍五入到分
-        return bcmul($widthM, $pricePerMeterCent, 0);
+        // 横轨费用 = 宽度(米) × 单价(分/米)，四舍五入到分（ROUND_HALF_UP，规范 7.2）
+        return (string) Money::roundHalfUpCent($widthM, $pricePerMeterCent);
     }
 
     /**
@@ -250,7 +289,7 @@ class PriceService extends BaseService
     {
         $track = Db::name('track')
             ->where('color', $trackColor)
-            ->where('track_type', 'vertical')
+            ->where('track_type', TrackType::VERTICAL->value)
             ->where('enabled', 1)
             ->find();
 
@@ -258,13 +297,13 @@ class PriceService extends BaseService
             throw new ValidateException("轨道配置不存在或已停用(颜色:{$trackColor}, 类型:竖轨)");
         }
 
-        $pricePerMeterCent = (string) $track['unit_price_cent'];
+        $pricePerMeterCent = (string) $track['price_per_meter_cent'];
 
         // 竖轨总长度 = 高度 × 2（两条竖轨）
         $totalLengthM = bcmul($heightM, '2', self::AREA_SCALE);
 
-        // 竖轨费用 = 总长度 × 单价
-        return bcmul($totalLengthM, $pricePerMeterCent, 0);
+        // 竖轨费用 = 总长度 × 单价（ROUND_HALF_UP 到分，规范 7.2）
+        return (string) Money::roundHalfUpCent($totalLengthM, $pricePerMeterCent);
     }
 
     /**
@@ -307,8 +346,8 @@ class PriceService extends BaseService
         $lossCoefficient = $fabric['loss_coefficient'] ?? '1.0';
         $effectiveArea = bcmul($areaM2, (string) $lossCoefficient, self::AREA_SCALE);
 
-        // 面料费用 = 有效面积 × 单价(分/㎡)
-        return bcmul($effectiveArea, $pricePerSqmCent, 0);
+        // 面料费用 = 有效面积 × 单价(分/㎡)（ROUND_HALF_UP 到分，规范 7.2）
+        return (string) Money::roundHalfUpCent($effectiveArea, $pricePerSqmCent);
     }
 
     /**
@@ -344,43 +383,56 @@ class PriceService extends BaseService
     }
 
     /**
-     * 计算套件费用（分）
+     * 查询门店客户等级对应的生效中套件主数据（PRD 4.4）
      *
-     * 公式：套件费用(分) = 未抵扣数量 × 客户等级套件单价(分)
-     * 使用库存抵扣时费用为0（PRD 4.4）
+     * 批次2c：套件计价落地。按 lj_store.customer_level 从 deploy lj_kit
+     * 查询 status=1 且有效期覆盖当日的等级套件价；无匹配时抛业务异常，
+     * 禁止静默返回 0 元。
      *
      * @param int $storeId 门店ID
-     * @param int $useInventory 是否使用库存
-     * @param int $inventoryDeductCount 库存抵扣数量
-     * @return string 费用（分，整数字符串）
+     * @return array lj_kit 记录（含 id/kit_sku/kit_price_cent）
+     * @throws ValidateException
      */
-    private function calculateKitCent(int $storeId, int $useInventory, int $inventoryDeductCount): string
+    public function resolveLevelKit(int $storeId): array
     {
-        // 每副窗帘1套套件，未抵扣数量 = 1 - 抵扣数量
-        $undeductCount = max(0, 1 - $inventoryDeductCount);
-
-        if ($undeductCount === 0) {
-            return '0';
+        $store = Store::find($storeId);
+        if (!$store) {
+            throw new ValidateException('门店不存在，无法确定套件等级价');
         }
 
-        // 获取客户等级套件单价（分）
-        $kitPriceCent = $this->getKitPriceCent($storeId);
+        $today = date('Y-m-d');
+        $kit = Db::name('kit')
+            ->where('customer_level', (int) $store->customer_level)
+            ->where('status', 1)
+            ->where(function ($query) use ($today) {
+                $query->where(function ($q) use ($today) {
+                    $q->whereNull('effective_from')->orWhere('effective_from', '<=', $today);
+                })->where(function ($q) use ($today) {
+                    $q->whereNull('effective_to')->orWhere('effective_to', '>=', $today);
+                });
+            })
+            ->order('id', 'desc')
+            ->find();
 
-        return bcmul((string) $undeductCount, (string) $kitPriceCent, 0);
+        if (!$kit) {
+            throw new ValidateException('套件价未配置：该客户等级无生效中的等级套件价，请先在后台配置套件主数据');
+        }
+
+        return $kit;
     }
 
     /**
      * 获取门店等级对应套件价格（分）
      *
-     * 价格从后台 kit 表读取，禁止硬编码（规范 8.2）
+     * 价格从后台 lj_kit 表读取，禁止硬编码（规范 8.2）。
      *
      * @param int $storeId 门店ID
      * @return int 套件单价（分）
+     * @throws ValidateException
      */
     public function getKitPriceCent(int $storeId): int
     {
-        // TODO: kit 套餐功能待 database.md 补充 lj_kit 表后启用
-        return 0;
+        return (int) $this->resolveLevelKit($storeId)['kit_price_cent'];
     }
 
     /**
@@ -391,13 +443,7 @@ class PriceService extends BaseService
      */
     private function getPowerSurchargeCent(int $powerType): int
     {
-        $accessory = Db::name('accessory')
-            ->where('config_group', 'power')
-            ->where('option_type', $powerType)
-            ->where('enabled', 1)
-            ->find();
-
-        return $accessory ? (int) $accessory['surcharge_cent'] : 0;
+        return $this->getAccessorySurchargeCent('power', $powerType);
     }
 
     /**
@@ -408,9 +454,21 @@ class PriceService extends BaseService
      */
     private function getRemoteSurchargeCent(int $remoteType): int
     {
+        return $this->getAccessorySurchargeCent('remote', $remoteType);
+    }
+
+    /**
+     * 获取选装配件加价（分）
+     *
+     * @param string $configGroup 配置组：power/remote/wall_control
+     * @param int $optionType 选项类型
+     * @return int 加价（分），未配置时返回 0
+     */
+    private function getAccessorySurchargeCent(string $configGroup, int $optionType): int
+    {
         $accessory = Db::name('accessory')
-            ->where('config_group', 'remote')
-            ->where('option_type', $remoteType)
+            ->where('config_group', $configGroup)
+            ->where('option_type', $optionType)
             ->where('enabled', 1)
             ->find();
 
@@ -446,9 +504,12 @@ class PriceService extends BaseService
     }
 
     /**
-     * 校验尺寸是否在允许范围内
+     * 校验尺寸是否超出绝对硬限（批次5：两级判断）
      *
-     * PRD 4.1.1：最小宽度90cm，最大350cm；最小高度50cm，最大600cm
+     * 第一级（标准推荐范围，宽 90~350 / 高 50~600，PRD 4.1.1）：
+     *   超出【不拦截】，由 calculateItemAmount 标记 is_nonstandard=true
+     *   并返回 nonstandard_hint，供前端提示“联系总部非标评估”；
+     * 第二级（绝对硬限）：超出直接拒绝下单。
      *
      * @param string $widthCm 宽度（厘米）
      * @param string $heightCm 高度（厘米）
@@ -456,11 +517,11 @@ class PriceService extends BaseService
      */
     private function validateDimensionRange(string $widthCm, string $heightCm): void
     {
-        if (bccomp($widthCm, (string) self::WIDTH_MIN_CM, 1) < 0 || bccomp($widthCm, (string) self::WIDTH_MAX_CM, 1) > 0) {
-            throw new ValidateException(sprintf('宽度超出范围(%.1f-%.1f cm)', self::WIDTH_MIN_CM, self::WIDTH_MAX_CM));
+        if (bccomp($widthCm, (string) self::WIDTH_HARD_MIN_CM, 1) < 0 || bccomp($widthCm, (string) self::WIDTH_HARD_MAX_CM, 1) > 0) {
+            throw new ValidateException(sprintf('宽度超出允许范围(%.1f-%.1f cm)，无法下单', self::WIDTH_HARD_MIN_CM, self::WIDTH_HARD_MAX_CM));
         }
-        if (bccomp($heightCm, (string) self::HEIGHT_MIN_CM, 1) < 0 || bccomp($heightCm, (string) self::HEIGHT_MAX_CM, 1) > 0) {
-            throw new ValidateException(sprintf('高度超出范围(%.1f-%.1f cm)', self::HEIGHT_MIN_CM, self::HEIGHT_MAX_CM));
+        if (bccomp($heightCm, (string) self::HEIGHT_HARD_MIN_CM, 1) < 0 || bccomp($heightCm, (string) self::HEIGHT_HARD_MAX_CM, 1) > 0) {
+            throw new ValidateException(sprintf('高度超出允许范围(%.1f-%.1f cm)，无法下单', self::HEIGHT_HARD_MIN_CM, self::HEIGHT_HARD_MAX_CM));
         }
     }
 
@@ -468,6 +529,8 @@ class PriceService extends BaseService
      * 生成非标提示
      *
      * 仅用于构建可读提示文本，不参与任何金额计算。
+     * 批次5：尾部追加“联系总部非标评估”引导文案，由 OrderService
+     * 拼接 [非标] 前缀后落库 lj_order_item.remark（批次2c约定）。
      *
      * @param string $widthCm 宽度(cm)
      * @param string $heightCm 高度(cm)
@@ -477,11 +540,12 @@ class PriceService extends BaseService
     {
         $hints = [];
         if (bccomp($widthCm, (string) self::WIDTH_MIN_CM, 1) < 0 || bccomp($widthCm, (string) self::WIDTH_MAX_CM, 1) > 0) {
-            $hints[] = "宽度{$widthCm}cm超出范围(" . self::WIDTH_MIN_CM . '-' . self::WIDTH_MAX_CM . "cm)";
+            $hints[] = "宽度{$widthCm}cm超出标准推荐范围(" . self::WIDTH_MIN_CM . '-' . self::WIDTH_MAX_CM . "cm)";
         }
         if (bccomp($heightCm, (string) self::HEIGHT_MIN_CM, 1) < 0 || bccomp($heightCm, (string) self::HEIGHT_MAX_CM, 1) > 0) {
-            $hints[] = "高度{$heightCm}cm超出范围(" . self::HEIGHT_MIN_CM . '-' . self::HEIGHT_MAX_CM . "cm)";
+            $hints[] = "高度{$heightCm}cm超出标准推荐范围(" . self::HEIGHT_MIN_CM . '-' . self::HEIGHT_MAX_CM . "cm)";
         }
+        $hints[] = '请联系总部进行非标评估';
         return implode('；', $hints);
     }
 }

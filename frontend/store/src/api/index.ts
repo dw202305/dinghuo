@@ -79,12 +79,18 @@ export async function request<T>(config: RequestConfig): Promise<T> {
 
         // ── 409 Conflict ──
         if (statusCode === 409) {
+          // 先解析响应体，优先使用后端业务错误码映射或 message，无 body 才回退固定文案
+          const body = res.data as ApiResponse<unknown> | undefined;
+          const conflictMsg =
+            (body && ERROR_CODE_MESSAGES[body.code]) ||
+            (body && body.message) ||
+            '操作冲突，请刷新页面重试';
           if (showError) {
-            uni.showToast({ title: '操作冲突，请刷新页面重试', icon: 'none' });
+            uni.showToast({ title: conflictMsg, icon: 'none', duration: 3000 });
           }
           // 触发数据刷新事件（供页面监听）
           uni.$emit('data-conflict');
-          reject(new Error('操作冲突'));
+          reject(new Error(conflictMsg));
           return;
         }
 
@@ -112,7 +118,20 @@ export async function request<T>(config: RequestConfig): Promise<T> {
         }
 
         if (statusCode < 200 || statusCode >= 300) {
-          const errMsg = `请求失败(${statusCode})`;
+          // 批次5：后端启用 HTTP 状态码映射（规范 §14.2），
+          // 非 2xx 响应体仍是统一 JSON 结构，优先读 body.message，
+          // 并对 2xxx 认证错误保持原有的跳登录行为。
+          const body = res.data as ApiResponse<unknown> | undefined;
+          if (body && (body.code === 2001 || body.code === 2002 || body.code === 2003)) {
+            authStore.clearAuth();
+            uni.showToast({ title: '登录已过期，请重新登录', icon: 'none' });
+            setTimeout(() => {
+              uni.navigateTo({ url: '/pages/login/index' });
+            }, 1500);
+            reject(new Error(body.message));
+            return;
+          }
+          const errMsg = (body && body.message) || `请求失败(${statusCode})`;
           if (showError) {
             uni.showToast({ title: errMsg, icon: 'none' });
           }

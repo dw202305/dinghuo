@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace app\api\controller;
 
 use app\api\validate\FabricValidate;
+use app\common\support\Money;
 use think\exception\ValidateException;
 use think\facade\Db;
 
@@ -45,11 +46,13 @@ class FabricController extends BaseController
         if ($functionTag = $request->param('function_tag', '')) {
             $query->where('function_tags', 'like', '%' . $functionTag . '%');
         }
+        // 批次2c：deploy lj_fabric 价格列为 price_per_sqm_cent（整数分），
+        // 入参 price_min/price_max 仍为元，内部转分比较（禁 float）
         if ($priceMin = $request->param('price_min')) {
-            $query->where('price_per_sqm', '>=', (float) $priceMin);
+            $query->where('price_per_sqm_cent', '>=', Money::mulCent((string) $priceMin, 100));
         }
         if ($priceMax = $request->param('price_max')) {
-            $query->where('price_per_sqm', '<=', (float) $priceMax);
+            $query->where('price_per_sqm_cent', '<=', Money::mulCent((string) $priceMax, 100));
         }
         if ($stockStatus = $request->param('stock_status/d')) {
             $query->where('stock_status', $stockStatus);
@@ -59,10 +62,10 @@ class FabricController extends BaseController
         $sort = $request->param('sort', 'hot');
         switch ($sort) {
             case 'price_asc':
-                $query->order('price_per_sqm', 'asc');
+                $query->order('price_per_sqm_cent', 'asc');
                 break;
             case 'price_desc':
-                $query->order('price_per_sqm', 'desc');
+                $query->order('price_per_sqm_cent', 'desc');
                 break;
             case 'newest':
                 $query->order('id', 'desc');
@@ -87,6 +90,8 @@ class FabricController extends BaseController
             $item['fabric_id'] = $item['id'];
             $item['function_tags'] = json_decode($item['function_tags'] ?? '[]', true);
             $item['stock_status_text'] = $this->getStockStatusText((int) $item['stock_status']);
+            // API 兼容：额外输出元显示价（仅展示用，不参与结算）
+            $item['price_per_sqm'] = number_format(((int) ($item['price_per_sqm_cent'] ?? 0)) / 100, 2, '.', '');
             // 收藏状态（查收藏表）
             $item['is_favorited'] = false; // TODO: fabric_favorite 表待启用; if(false)
         }
@@ -128,6 +133,8 @@ class FabricController extends BaseController
         $fabric['texture_tags']   = json_decode($fabric['texture_tags'] ?? '[]', true);
         $fabric['detail_images']  = json_decode($fabric['detail_images'] ?? '[]', true);
         $fabric['stock_status_text'] = $this->getStockStatusText((int) $fabric['stock_status']);
+        // API 兼容：额外输出元显示价（仅展示用）
+        $fabric['price_per_sqm']  = number_format(((int) ($fabric['price_per_sqm_cent'] ?? 0)) / 100, 2, '.', '');
 
 
         return $this->success($fabric);
@@ -198,7 +205,7 @@ class FabricController extends BaseController
                 'oi.fabric_no',
                 'f.name',
                 'f.series',
-                'f.price_per_sqm',
+                'f.price_per_sqm_cent',
                 'f.main_image',
                 'f.stock_status',
                 Db::raw('MAX(o.created_at) as last_used_at'),
@@ -207,6 +214,11 @@ class FabricController extends BaseController
             ->limit($limit)
             ->select()
             ->toArray();
+
+        // API 兼容：额外输出元显示价（仅展示用）
+        foreach ($list as &$item) {
+            $item['price_per_sqm'] = number_format(((int) ($item['price_per_sqm_cent'] ?? 0)) / 100, 2, '.', '');
+        }
 
         return $this->success(['list' => $list]);
     }

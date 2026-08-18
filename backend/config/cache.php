@@ -30,8 +30,8 @@ return [
             'host'       => env('redis.host', '127.0.0.1'),
             // 端口
             'port'       => env('redis.port', '6379'),
-            // 密码
-            'password'   => env('redis.password', 'Redis@2026'),
+            // 密码（兜底空串：缺配置时快速失败，避免静默连错口令）
+            'password'   => env('redis.password', ''),
             // 缓存有效期 0表示永久缓存
             'expire'     => 0,
             // 缓存前缀

@@ -51,7 +51,7 @@
             <el-table-column prop="color_name" label="颜色" width="100" />
             <el-table-column label="单价(元/㎡)" width="120" align="right">
               <template #default="{ row }">
-                <span class="price-text">¥{{ formatMoney(fabricPriceYuan(row)) }}</span>
+                <span class="price-text">¥{{ formatMoney(fabricPriceYuan(row as FabricRow)) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="价格版本" width="100" align="center">
@@ -227,7 +227,7 @@
             <el-table-column prop="series" label="系列" width="110" show-overflow-tooltip />
             <el-table-column label="当前单价(元/㎡)" width="140" align="right">
               <template #default="{ row }">
-                <span class="price-text">¥{{ formatMoney(fabricPriceYuan(row)) }}</span>
+                <span class="price-text">¥{{ formatMoney(fabricPriceYuan(row as FabricRow)) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="价格版本" width="110" align="center">
