@@ -5,6 +5,8 @@ namespace app\api\controller;
 
 use app\api\validate\PaymentValidate;
 use app\common\service\PaymentService;
+use app\common\service\pay\AlipayPayVerifier;
+use app\common\service\pay\WechatPayVerifier;
 use think\exception\ValidateException;
 
 /**
@@ -40,6 +42,9 @@ class PaymentController extends BaseController
                 (int) $data['order_id'],
                 (int) $data['pay_channel'],
                 (string) $data['pay_method'],
+                // 批次4：前端 Idempotent-Key 头优先，缺省由服务层按
+                // order_pay:{order_no}:{channel} 构造业务确定键
+                ['idempotent_key' => (string) $this->app->request->header('Idempotent-Key', '')],
             );
 
             return $this->success($result);
@@ -73,11 +78,23 @@ class PaymentController extends BaseController
     /**
      * 微信支付回调
      * POST /api/v1/store/payment/notify/wechat
+     *
+     * 先经 WechatPayVerifier 验签（规范 12.2），验签失败直接拒绝，不进入业务处理。
      */
     public function wechatNotify(): \think\Response
     {
         $rawContent = $this->app->request->getContent();
-        $notifyData = json_decode($rawContent, true) ?: [];
+        $headers = $this->app->request->header();
+
+        $verifier = new WechatPayVerifier();
+        if (!$verifier->verify($headers, $rawContent)) {
+            \think\facade\Log::error('微信回调验签失败，已拒绝', [
+                'ip' => $this->app->request->ip(),
+            ]);
+            return json(['code' => 'FAIL', 'message' => '验签失败'], 401);
+        }
+
+        $notifyData = $verifier->parse($rawContent);
 
         try {
             $result = $this->paymentService->handleWechatNotify($notifyData);
@@ -98,10 +115,23 @@ class PaymentController extends BaseController
     /**
      * 支付宝支付回调
      * POST /api/v1/store/payment/notify/alipay
+     *
+     * 先经 AlipayPayVerifier 验签（规范 12.2），验签失败直接拒绝，不进入业务处理。
      */
     public function alipayNotify(): \think\Response
     {
-        $notifyData = $this->app->request->post();
+        $rawContent = $this->app->request->getContent();
+        $headers = $this->app->request->header();
+
+        $verifier = new AlipayPayVerifier();
+        if (!$verifier->verify($headers, $rawContent)) {
+            \think\facade\Log::error('支付宝回调验签失败，已拒绝', [
+                'ip' => $this->app->request->ip(),
+            ]);
+            return response('failure', 200, [], 'text/plain');
+        }
+
+        $notifyData = $verifier->parse($rawContent);
 
         try {
             $result = $this->paymentService->handleAlipayNotify($notifyData);
