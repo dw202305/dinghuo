@@ -70,7 +70,12 @@ class CrossDomain
      */
     private function allowedOrigins(): array
     {
-        $raw = (string) env('cors.allowed_origins', self::DEFAULT_ALLOWED_ORIGINS);
+        // 注意：env() 仅在键不存在时返回默认值；若 .env 中 ALLOWED_ORIGINS 为空串，
+        // 会返回 '' 而非缺省常量，必须再做一次空值兜底，否则白名单落空、全部 Origin 不回显
+        $raw = env('cors.allowed_origins', self::DEFAULT_ALLOWED_ORIGINS);
+        if (!is_string($raw) || trim($raw) === '') {
+            $raw = self::DEFAULT_ALLOWED_ORIGINS;
+        }
 
         return array_values(array_filter(array_map('trim', explode(',', $raw)), static fn ($o) => $o !== ''));
     }
